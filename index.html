@@ -9,13 +9,13 @@
 <meta name="theme-color" content="#E30613">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="穎利內部作業中心">
+<meta name="apple-mobile-web-app-title" content="穎利作業中心">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --red:#E30613; --red-dark:#9a0410; --bg:#0c0c0e; --panel:#141418;
-    --white:#f5f5f7; --gray:#7c7c85; --line:rgba(255,255,255,.07);
+    --red:#E30613; --red-dark:#8f0009; --bg:#0a0a0c; --panel:#141418;
+    --white:#ffffff; --gray:#6a6a72; --line:rgba(255,255,255,.08);
     --en:'Chakra Petch',sans-serif; --tc:'Noto Sans TC',sans-serif;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
@@ -26,125 +26,162 @@
     -webkit-tap-highlight-color:transparent;
   }
 
-  /* 背景：極淡網格緩飄 + 底部紅光暈 */
+  /* 背景網格 + 斜切紅光帶（閃）*/
   .grid{
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background-image:
       linear-gradient(var(--line) 1px,transparent 1px),
       linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:60px 60px;
-    mask-image:radial-gradient(ellipse 80% 70% at 50% 42%,#000 35%,transparent 78%);
-    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 42%,#000 35%,transparent 78%);
-    animation:drift 40s linear infinite;
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse 90% 80% at 50% 45%,#000 30%,transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse 90% 80% at 50% 45%,#000 30%,transparent 75%);
   }
-  @keyframes drift{ from{background-position:0 0} to{background-position:60px 60px} }
-  .glow{
-    position:fixed; left:50%; bottom:-30%; z-index:0; pointer-events:none;
-    width:120vmax; height:70vmax; transform:translateX(-50%);
-    background:radial-gradient(ellipse at center,rgba(227,6,19,.14),transparent 60%);
-    animation:breathe 8s ease-in-out infinite;
+  .slash{
+    position:fixed; z-index:1; pointer-events:none;
+    width:180vmax; height:3px; left:50%; top:50%;
+    transform:translate(-50%,-50%) rotate(-18deg);
+    background:linear-gradient(90deg,transparent,var(--red),transparent);
+    animation:slashPulse 3s ease-in-out infinite;
   }
-  @keyframes breathe{ 0%,100%{opacity:.6} 50%{opacity:1} }
+  @keyframes slashPulse{ 0%,100%{opacity:.3} 50%{opacity:.85} }
+
+  /* 飄浮肉球 */
+  .paw{
+    position:fixed; z-index:1; pointer-events:none; opacity:0;
+    color:var(--red);
+    animation:floatUp linear infinite;
+  }
+  @keyframes floatUp{
+    0%{ transform:translateY(20px) rotate(var(--rot)); opacity:0; }
+    12%{ opacity:.5; }
+    88%{ opacity:.5; }
+    100%{ transform:translateY(-108vh) rotate(var(--rot)); opacity:0; }
+  }
 
   /* 主體 */
   .stage{
-    position:relative; z-index:10; text-align:center;
-    padding:32px; max-width:560px; width:100%;
+    position:relative; z-index:10; text-align:center; padding:28px;
+    max-width:600px; width:100%;
     display:flex; flex-direction:column; align-items:center;
   }
   .logo{
-    height:58px; max-width:80vw; object-fit:contain; margin-bottom:26px;
-    filter:drop-shadow(0 0 10px rgba(227,6,19,.25));
-    opacity:0; animation:fade .8s .1s forwards, floaty 6s 1s ease-in-out infinite;
+    height:60px; max-width:82vw; object-fit:contain; margin-bottom:18px;
+    filter:drop-shadow(0 0 14px rgba(227,6,19,.5));
+    opacity:0; animation:rise .6s .1s forwards, floaty 5s 1s ease-in-out infinite;
   }
-  @media (max-width:480px){ .logo{ height:46px; } }
+  @media (max-width:480px){ .logo{ height:48px; } }
+
+  .brand{
+    font-family:var(--en); font-weight:600; font-size:12px;
+    letter-spacing:7px; color:var(--gray); text-transform:uppercase;
+    opacity:0; animation:rise .6s .2s forwards;
+  }
+  .brand b{ color:var(--red); }
 
   .title{
-    font-weight:900; font-size:clamp(38px,10vw,60px);
-    letter-spacing:6px; margin-right:-6px; line-height:1.15;
-    opacity:0; animation:fade .8s .3s forwards;
+    position:relative; margin:12px 0 6px;
+    font-weight:900; font-size:clamp(50px,13vw,82px);
+    letter-spacing:10px; margin-right:-10px; line-height:1.1;
+    opacity:0; animation:rise .6s .35s forwards;
+    text-shadow:0 0 26px rgba(227,6,19,.35);
   }
+  .title .paw-dot{ color:var(--red); font-size:.5em; vertical-align:middle;
+    display:inline-block; animation:wag 2.5s ease-in-out infinite; }
+  @keyframes wag{ 0%,100%{transform:rotate(-12deg)} 50%{transform:rotate(12deg)} }
+
   .sub{
-    margin-top:12px; font-family:var(--en); font-weight:600;
-    font-size:13px; letter-spacing:6px; color:var(--gray); text-transform:uppercase;
-    opacity:0; animation:fade .8s .45s forwards;
+    font-family:var(--en); font-weight:700; font-size:13px;
+    letter-spacing:8px; color:var(--red); text-transform:uppercase;
+    text-shadow:0 0 12px rgba(227,6,19,.6);
+    opacity:0; animation:rise .6s .45s forwards;
   }
-  .rule{
-    width:64px; height:2px; background:var(--red); margin:30px 0 6px;
-    opacity:0; animation:fade .8s .55s forwards;
+
+  .divider{
+    width:200px; height:3px; margin:30px 0 22px;
+    background:repeating-linear-gradient(-45deg,var(--red) 0 8px,transparent 8px 16px);
+    opacity:0; animation:rise .6s .55s forwards;
   }
   .company{
-    font-size:13px; letter-spacing:3px; color:var(--gray); margin-bottom:36px;
-    opacity:0; animation:fade .8s .6s forwards;
+    font-size:13px; letter-spacing:3px; color:var(--gray); margin-bottom:30px;
+    opacity:0; animation:rise .6s .6s forwards;
   }
 
-  /* 進入按鈕：斜切收小、光暈柔化 */
+  /* 進入按鈕 */
   .enter{
-    transform:skewX(-10deg);
+    transform:skewX(-14deg);
     background:linear-gradient(135deg,var(--red),var(--red-dark));
     border:none; cursor:pointer; padding:0; position:relative;
-    box-shadow:0 0 20px rgba(227,6,19,.28), 0 6px 0 rgba(0,0,0,.35);
-    opacity:0; animation:fade .8s .75s forwards, pulse 4s 2s ease-in-out infinite;
-    transition:transform .15s, box-shadow .15s;
+    box-shadow:0 0 24px rgba(227,6,19,.45), 0 7px 0 rgba(0,0,0,.5);
+    opacity:0; animation:rise .6s .75s forwards, glowPulse 3.5s 2s ease-in-out infinite;
+    transition:transform .12s, box-shadow .12s;
   }
-  .enter::before{
-    content:''; position:absolute; inset:3px;
-    border:1px solid rgba(255,255,255,.28); pointer-events:none;
-  }
-  .enter:hover{ transform:skewX(-10deg) translateY(-2px);
-    box-shadow:0 0 32px rgba(227,6,19,.5), 0 8px 0 rgba(0,0,0,.35); }
-  .enter:active{ transform:skewX(-10deg) translateY(2px);
-    box-shadow:0 0 14px rgba(227,6,19,.4), 0 3px 0 rgba(0,0,0,.35); }
-  .enter .lab{
-    display:block; transform:skewX(10deg);
-    padding:17px 56px; font-family:var(--tc); font-weight:700;
-    font-size:19px; letter-spacing:6px; margin-right:-6px; color:#fff;
-  }
-  .enter .en{
-    display:block; transform:skewX(10deg);
-    font-family:var(--en); font-weight:500; font-size:10px;
-    letter-spacing:4px; color:rgba(255,255,255,.65);
-    padding-bottom:11px; margin-top:-9px;
-  }
-  @keyframes pulse{ 0%,100%{box-shadow:0 0 20px rgba(227,6,19,.28),0 6px 0 rgba(0,0,0,.35)}
-    50%{box-shadow:0 0 30px rgba(227,6,19,.42),0 6px 0 rgba(0,0,0,.35)} }
+  .enter::before{ content:''; position:absolute; inset:3px;
+    border:1px solid rgba(255,255,255,.35); pointer-events:none; }
+  .enter:hover{ transform:skewX(-14deg) translateY(-2px);
+    box-shadow:0 0 40px rgba(227,6,19,.8),0 9px 0 rgba(0,0,0,.5); }
+  .enter:active{ transform:skewX(-14deg) translateY(2px);
+    box-shadow:0 0 16px rgba(227,6,19,.5),0 3px 0 rgba(0,0,0,.5); }
+  .enter .lab{ display:block; transform:skewX(14deg);
+    padding:18px 58px; font-family:var(--tc); font-weight:900;
+    font-size:21px; letter-spacing:8px; margin-right:-8px; color:#fff; }
+  .enter .en{ display:block; transform:skewX(14deg);
+    font-family:var(--en); font-weight:600; font-size:10px;
+    letter-spacing:5px; color:rgba(255,255,255,.7);
+    padding-bottom:11px; margin-top:-9px; }
+  @keyframes glowPulse{ 0%,100%{box-shadow:0 0 24px rgba(227,6,19,.45),0 7px 0 rgba(0,0,0,.5)}
+    50%{box-shadow:0 0 38px rgba(227,6,19,.7),0 7px 0 rgba(0,0,0,.5)} }
 
-  .foot{
-    position:fixed; bottom:22px; left:0; right:0; z-index:2; text-align:center;
-    font-family:var(--en); font-size:10px; letter-spacing:3px;
-    color:#4a4a52; text-transform:uppercase;
-    opacity:0; animation:fade .8s 1s forwards;
+  .tapline{
+    margin-top:20px; font-family:var(--en); font-size:10px; letter-spacing:4px;
+    color:var(--gray); text-transform:uppercase;
+    opacity:0; animation:rise .6s .9s forwards, blink 1.8s 1.5s ease-in-out infinite;
   }
+  @keyframes blink{ 0%,100%{opacity:.85} 50%{opacity:.3} }
+  @keyframes rise{ from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:translateY(0)} }
+  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 
-  @keyframes fade{ from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
-  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
-
-  @media (prefers-reduced-motion:reduce){
-    *{ animation:none !important; opacity:1 !important; }
-  }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; opacity:1 !important; } }
 </style>
 </head>
 <body>
 <div class="grid"></div>
-<div class="glow"></div>
+<div class="slash"></div>
 
 <div class="stage">
   <img class="logo" src="logo.png" alt="穎利科技 WINZ" onerror="this.style.display='none'">
-  <h1 class="title">作業系統</h1>
-  <div class="sub">Operations Portal</div>
-  <div class="rule"></div>
+  <div class="brand">WINZ <b>//</b> PET OEM</div>
+  <h1 class="title">作業中心<span class="paw-dot">🐾</span></h1>
+  <div class="sub">Operations Hub</div>
+  <div class="divider"></div>
   <div class="company">穎利科技股份有限公司</div>
 
   <button class="enter" id="btnEnter">
     <span class="lab">進入系統</span>
-    <span class="en">// ENTER //</span>
+    <span class="en">// PRESS TO ENTER //</span>
   </button>
-</div>
 
-<div class="foot">WINZ TECHNOLOGY &nbsp;·&nbsp; ERP SUITE</div>
+  <div class="tapline">Tap to launch</div>
+</div>
 
 <script>
   var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+
+  // 飄浮肉球生成
+  (function(){
+    var paths = '🐾';
+    for (var i = 0; i < 7; i++){
+      var s = document.createElement('div');
+      s.className = 'paw';
+      s.textContent = '🐾';
+      var size = 14 + Math.random()*20;
+      s.style.left = (Math.random()*100) + 'vw';
+      s.style.fontSize = size + 'px';
+      s.style.setProperty('--rot', (Math.random()*40-20) + 'deg');
+      s.style.animationDuration = (13 + Math.random()*10) + 's';
+      s.style.animationDelay = (Math.random()*8) + 's';
+      document.body.appendChild(s);
+    }
+  })();
 
   var launched = false;
   function launch(){
@@ -153,8 +190,10 @@
     window.location.href = TARGET_URL;
   }
   document.getElementById('btnEnter').addEventListener('click', launch);
+  document.addEventListener('touchend', function(e){
+    if (e.target.closest('.enter')) return; // 按鈕自己處理
+  }, { passive:true });
 
-  // PWA
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('sw.js')
