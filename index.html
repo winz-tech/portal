@@ -1,18 +1,167 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <!-- 這行會自動跳轉，保留著 -->
-    <meta http-equiv="refresh" content="0;url=https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec?page=home">
-    
-    <!-- 這裡加入顯示標題與縮圖的設定 -->
-    <title>穎利科技股份有限公司</title>
-    <meta property="og:title" content="穎利科技 作業中心" />
-    <meta property="og:description" content="內部作業中心" />
-    <meta property="og:image" content="https://winz-tech.github.io/BD/logo.png" />
-    <meta property="og:type" content="website" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>穎利科技｜作業中心</title>
+<meta name="description" content="穎利科技作業中心">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E30613">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="穎利內部作業中心">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#E30613; --red-dark:#9a0410; --bg:#0c0c0e; --panel:#141418;
+    --white:#f5f5f7; --gray:#7c7c85; --line:rgba(255,255,255,.07);
+    --en:'Chakra Petch',sans-serif; --tc:'Noto Sans TC',sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    background:var(--bg); color:var(--white); font-family:var(--tc);
+    overflow:hidden; display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* 背景：極淡網格緩飄 + 底部紅光暈 */
+  .grid{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:60px 60px;
+    mask-image:radial-gradient(ellipse 80% 70% at 50% 42%,#000 35%,transparent 78%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 70% at 50% 42%,#000 35%,transparent 78%);
+    animation:drift 40s linear infinite;
+  }
+  @keyframes drift{ from{background-position:0 0} to{background-position:60px 60px} }
+  .glow{
+    position:fixed; left:50%; bottom:-30%; z-index:0; pointer-events:none;
+    width:120vmax; height:70vmax; transform:translateX(-50%);
+    background:radial-gradient(ellipse at center,rgba(227,6,19,.14),transparent 60%);
+    animation:breathe 8s ease-in-out infinite;
+  }
+  @keyframes breathe{ 0%,100%{opacity:.6} 50%{opacity:1} }
+
+  /* 主體 */
+  .stage{
+    position:relative; z-index:10; text-align:center;
+    padding:32px; max-width:560px; width:100%;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .logo{
+    height:58px; max-width:80vw; object-fit:contain; margin-bottom:26px;
+    filter:drop-shadow(0 0 10px rgba(227,6,19,.25));
+    opacity:0; animation:fade .8s .1s forwards, floaty 6s 1s ease-in-out infinite;
+  }
+  @media (max-width:480px){ .logo{ height:46px; } }
+
+  .title{
+    font-weight:900; font-size:clamp(38px,10vw,60px);
+    letter-spacing:6px; margin-right:-6px; line-height:1.15;
+    opacity:0; animation:fade .8s .3s forwards;
+  }
+  .sub{
+    margin-top:12px; font-family:var(--en); font-weight:600;
+    font-size:13px; letter-spacing:6px; color:var(--gray); text-transform:uppercase;
+    opacity:0; animation:fade .8s .45s forwards;
+  }
+  .rule{
+    width:64px; height:2px; background:var(--red); margin:30px 0 6px;
+    opacity:0; animation:fade .8s .55s forwards;
+  }
+  .company{
+    font-size:13px; letter-spacing:3px; color:var(--gray); margin-bottom:36px;
+    opacity:0; animation:fade .8s .6s forwards;
+  }
+
+  /* 進入按鈕：斜切收小、光暈柔化 */
+  .enter{
+    transform:skewX(-10deg);
+    background:linear-gradient(135deg,var(--red),var(--red-dark));
+    border:none; cursor:pointer; padding:0; position:relative;
+    box-shadow:0 0 20px rgba(227,6,19,.28), 0 6px 0 rgba(0,0,0,.35);
+    opacity:0; animation:fade .8s .75s forwards, pulse 4s 2s ease-in-out infinite;
+    transition:transform .15s, box-shadow .15s;
+  }
+  .enter::before{
+    content:''; position:absolute; inset:3px;
+    border:1px solid rgba(255,255,255,.28); pointer-events:none;
+  }
+  .enter:hover{ transform:skewX(-10deg) translateY(-2px);
+    box-shadow:0 0 32px rgba(227,6,19,.5), 0 8px 0 rgba(0,0,0,.35); }
+  .enter:active{ transform:skewX(-10deg) translateY(2px);
+    box-shadow:0 0 14px rgba(227,6,19,.4), 0 3px 0 rgba(0,0,0,.35); }
+  .enter .lab{
+    display:block; transform:skewX(10deg);
+    padding:17px 56px; font-family:var(--tc); font-weight:700;
+    font-size:19px; letter-spacing:6px; margin-right:-6px; color:#fff;
+  }
+  .enter .en{
+    display:block; transform:skewX(10deg);
+    font-family:var(--en); font-weight:500; font-size:10px;
+    letter-spacing:4px; color:rgba(255,255,255,.65);
+    padding-bottom:11px; margin-top:-9px;
+  }
+  @keyframes pulse{ 0%,100%{box-shadow:0 0 20px rgba(227,6,19,.28),0 6px 0 rgba(0,0,0,.35)}
+    50%{box-shadow:0 0 30px rgba(227,6,19,.42),0 6px 0 rgba(0,0,0,.35)} }
+
+  .foot{
+    position:fixed; bottom:22px; left:0; right:0; z-index:2; text-align:center;
+    font-family:var(--en); font-size:10px; letter-spacing:3px;
+    color:#4a4a52; text-transform:uppercase;
+    opacity:0; animation:fade .8s 1s forwards;
+  }
+
+  @keyframes fade{ from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
+  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ animation:none !important; opacity:1 !important; }
+  }
+</style>
 </head>
 <body>
-    <p style="font-family:sans-serif;text-align:center;margin-top:40vh;color:#888">中心載入中...</p>
+<div class="grid"></div>
+<div class="glow"></div>
+
+<div class="stage">
+  <img class="logo" src="logo.png" alt="穎利科技 WINZ" onerror="this.style.display='none'">
+  <h1 class="title">作業系統</h1>
+  <div class="sub">Operations Portal</div>
+  <div class="rule"></div>
+  <div class="company">穎利科技股份有限公司</div>
+
+  <button class="enter" id="btnEnter">
+    <span class="lab">進入系統</span>
+    <span class="en">// ENTER //</span>
+  </button>
+</div>
+
+<div class="foot">WINZ TECHNOLOGY &nbsp;·&nbsp; ERP SUITE</div>
+
+<script>
+  var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+
+  var launched = false;
+  function launch(){
+    if (launched) return; launched = true;
+    document.getElementById('btnEnter').style.opacity = '.6';
+    window.location.href = TARGET_URL;
+  }
+  document.getElementById('btnEnter').addEventListener('click', launch);
+
+  // PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js')
+        .then(function(){ console.log('SW 已註冊'); })
+        .catch(function(e){ console.log('SW 註冊失敗', e); });
+    });
+  }
+</script>
 </body>
 </html>
