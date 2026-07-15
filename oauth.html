@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head><meta charset="UTF-8"><title>登入中…</title></head>
+<body style="background:#0a0a0c;margin:0">
+<script>
+  (function(){
+    var p = new URLSearchParams(location.search);
+    var code  = p.get('code')  || '';
+    var state = p.get('state') || '';     // 來源專案 exec（OAuth state 原樣帶回）
+    var err   = p.get('error') || '';
+    var GAS = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
+    if (err || !code) { location.replace(GAS + '?page=login'); return; }
+    // replace：不留歷史；直接以「網域格式」新導頁跳回 → 不會被插 /u/N/
+    location.replace(GAS + '?authland=1&code=' + encodeURIComponent(code) + '&back=' + encodeURIComponent(state));
+  })();
+</script>
+<p style="color:#8a8a92;font-family:sans-serif;text-align:center;margin-top:40vh">登入中…</p>
+</body>
+</html>
