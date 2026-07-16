@@ -36,14 +36,30 @@
     mask-image:radial-gradient(ellipse 90% 80% at 50% 45%,#000 30%,transparent 75%);
     -webkit-mask-image:radial-gradient(ellipse 90% 80% at 50% 45%,#000 30%,transparent 75%);
   }
-  .slash{
+  /* 步步高升：一串粉紅肉球由左下往右上依序印上去 */
+  .trail{
     position:fixed; z-index:1; pointer-events:none;
-    width:180vmax; height:3px; left:50%; top:50%;
+    left:50%; top:50%;
     transform:translate(-50%,-50%) rotate(-18deg);
-    background:linear-gradient(90deg,transparent,var(--red),transparent);
-    animation:slashPulse 3s ease-in-out infinite;
+    width:160vmax; height:60px;
+    display:flex; align-items:center; justify-content:space-between;
   }
-  @keyframes slashPulse{ 0%,100%{opacity:.3} 50%{opacity:.85} }
+  .trail .step{
+    font-size:26px; line-height:1;
+    color:#ff7eb3;                         /* 粉紅肉球 */
+    opacity:0;
+    filter:drop-shadow(0 0 8px rgba(255,126,179,.5));
+    animation:stepUp 4s ease-in-out infinite;
+  }
+  /* 每顆略略交錯上下，像真的踩出來的腳印 */
+  .trail .step:nth-child(odd){  transform:translateY(-7px) rotate(-12deg); }
+  .trail .step:nth-child(even){ transform:translateY(7px)  rotate(12deg); }
+  @keyframes stepUp{
+    0%      { opacity:0; }
+    8%,55%  { opacity:.9; }   /* 亮起、停留 */
+    75%,100%{ opacity:0; }    /* 淡出，準備下一輪 */
+  }
+  @media (prefers-reduced-motion:reduce){ .trail .step{ opacity:.6 !important; } }
 
   /* 飄浮肉球 */
   .paw{
@@ -145,7 +161,7 @@
 </head>
 <body>
 <div class="grid"></div>
-<div class="slash"></div>
+<div class="trail" id="trail"></div>
 
 <div class="stage">
   <img class="logo" src="logo.png" alt="穎利科技 WINZ" onerror="this.style.display='none'">
@@ -165,6 +181,20 @@
 
 <script>
   var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+
+  // 步步高升：生成一串粉紅肉球，逐顆延遲亮起（左下→右上）
+  (function(){
+    var trail = document.getElementById('trail');
+    if (!trail) return;
+    var N = 12;                       // 幾顆腳印
+    for (var i = 0; i < N; i++){
+      var p = document.createElement('span');
+      p.className = 'step';
+      p.textContent = '🐾';
+      p.style.animationDelay = (i * 0.28) + 's';   // 依序亮起，做出一步步印的感覺
+      trail.appendChild(p);
+    }
+  })();
 
   // 飄浮肉球生成
   (function(){
