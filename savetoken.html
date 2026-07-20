@@ -21,10 +21,8 @@
   var p = new URLSearchParams(location.search);
   var tok  = p.get('tok')  || '';
   var name = p.get('name') || '';
-  var shared = p.get('shared') || '';   // '1'=共用電腦,不種cookie
-  var go   = p.get('go')   || '';       // 存完要跳去的系統網址
-
-  // ★ 只有個人裝置(shared!=1)才種 cookie 救生艇
+  var shared = p.get('shared') || '';
+  var go   = p.get('go')   || '';
   if (tok && shared !== '1') {
     try {
       var maxage = 400*24*60*60;
@@ -32,18 +30,11 @@
       if (name) document.cookie = 'WZ_NAME_CK=' + encodeURIComponent(name) + '; max-age=' + maxage + '; path=/; SameSite=Lax';
     } catch(e){}
   }
-
-  // ★ 偵察:種完先別跳,印出「我在哪個桶」
-  var sa = (navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
-  var ckBack = document.cookie.indexOf('WZ_TOKEN_CK') > -1;
-  document.body.innerHTML =
-    '<div style="color:#fff;font-family:sans-serif;padding:30px;font-size:16px;line-height:2">'
-    + '<b style="color:'+(sa?'#3ecf6a':'#E30613')+';font-size:22px">'
-    + (sa ? '✅ 在 PWA 裡跑' : '❌ 被踢到 Safari 了') + '</b>'
-    + '<br>種完 cookie 讀得到嗎:' + (ckBack ? '✅ 讀得到' : '❌ 讀不到')
-    + '<br><br><a href="'+(go||'https://winz-tech.github.io/portal/index.html')+'" '
-    + 'style="color:#3ecf6a;font-size:18px">手動點此進系統 →</a>'
-    + '</div>';
+  // ★ 種完 cookie 等 350ms 再跳,給 iOS 把 cookie 寫進硬碟的時間
+  setTimeout(function(){
+    if (go) { location.replace(go); }
+    else { location.replace('https://winz-tech.github.io/portal/index.html'); }
+  }, 350);
 })();
 </script>
 </body>
