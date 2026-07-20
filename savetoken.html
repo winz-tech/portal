@@ -33,12 +33,17 @@
     } catch(e){}
   }
 
-  // 跳進系統(帶token,讓GAS登入)。用手指真點的替代:直接location即可,因為這是第一方→GAS,同源跳轉iOS放行
-  if (go) {
-    location.replace(go);
-  } else {
-    location.replace('https://winz-tech.github.io/portal/index.html');
-  }
+  // ★ 偵察:種完先別跳,印出「我在哪個桶」
+  var sa = (navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+  var ckBack = document.cookie.indexOf('WZ_TOKEN_CK') > -1;
+  document.body.innerHTML =
+    '<div style="color:#fff;font-family:sans-serif;padding:30px;font-size:16px;line-height:2">'
+    + '<b style="color:'+(sa?'#3ecf6a':'#E30613')+';font-size:22px">'
+    + (sa ? '✅ 在 PWA 裡跑' : '❌ 被踢到 Safari 了') + '</b>'
+    + '<br>種完 cookie 讀得到嗎:' + (ckBack ? '✅ 讀得到' : '❌ 讀不到')
+    + '<br><br><a href="'+(go||'https://winz-tech.github.io/portal/index.html')+'" '
+    + 'style="color:#3ecf6a;font-size:18px">手動點此進系統 →</a>'
+    + '</div>';
 })();
 </script>
 </body>
