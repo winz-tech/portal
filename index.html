@@ -162,23 +162,34 @@
 </head>
 <body>
 
-  <!-- 🔍 cookie診斷 v3（測完刪） -->
+ <!-- 🔍 GAS跳回set cookie 存活測試 v4（測完刪）-->
 <div id="wzspy" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:14px;padding:14px 16px;border-bottom:3px solid #E30613;line-height:1.8">診斷中…</div>
 <script>
 (function(){
   var el = document.getElementById('wzspy');
   function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?m.pop():''; }
-  var ls='', ck='';
-  try{ ls = localStorage.getItem('WZ_TOKEN')||''; }catch(e){}
-  ck = gc('WZ_TOKEN_CK');
   var sa=(navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
-  el.innerHTML =
-    '<b>模式:'+(sa?'真PWA':'非PWA/瀏覽器')+'</b>'+
-    '<br>localStorage WZ_TOKEN: <b style="color:'+(ls?'#27ae60':'#E30613')+'">'+(ls?'有 '+ls.slice(0,10):'❌空')+'</b>'+
-    '<br>cookie WZ_TOKEN_CK: <b style="color:'+(ck?'#27ae60':'#E30613')+'">'+(ck?'✅有 '+ck.slice(0,10):'❌空')+'</b>'+
-    '<br>所有cookie: '+(document.cookie||'（完全沒有cookie）')+
-    '<br><span style="color:#888;font-size:12px">15秒後消失</span>';
-  setTimeout(function(){el.style.display='none';},15000);
+
+  // 檢查網址有沒有帶 ?settok=xxx（模擬「GAS 跳回來帶 token」）
+  var p = new URLSearchParams(location.search);
+  var settok = p.get('settok');
+
+  if (settok){
+    // 模擬「登入成功、GAS 跳回接待頁帶 token」→ 種進第一方 cookie
+    document.cookie = 'WZ_TOKEN_CK=' + settok + '; max-age=' + (400*24*60*60) + '; path=/; SameSite=Lax';
+    el.innerHTML = '<b style="color:#ffb300">🌱 已種入 token cookie: '+settok+'</b>'+
+      '<br>模式:'+(sa?'真PWA':'非PWA')+
+      '<br><b>現在請：①滑掉App ②從主畫面圖示重開（不要帶網址）</b>'+
+      '<br><span style="color:#888;font-size:12px">重開後看這條是綠(活)還紅(死)</span>';
+  } else {
+    var ck = gc('WZ_TOKEN_CK');
+    el.innerHTML =
+      '<b style="color:'+(ck?'#27ae60':'#E30613')+';font-size:17px">'+(ck?'✅ token cookie 活著！方案甲成立':'❌ 沒有 token cookie')+'</b>'+
+      '<br>模式:'+(sa?'真PWA':'非PWA')+
+      '<br>WZ_TOKEN_CK: '+(ck||'（空）')+
+      '<br><span style="color:#888;font-size:12px">若空：先在網址加 ?settok=TEST123 開一次再測</span>';
+  }
+  setTimeout(function(){el.style.display='none';},20000);
 })();
 </script>
     
