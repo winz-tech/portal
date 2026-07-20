@@ -162,22 +162,29 @@
 </head>
 <body>
   
-  <!-- 🔍 iOS偵察浮層（測完即刪） -->
-<div id="wzspy" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:14px;padding:12px 16px;border-bottom:3px solid #E30613;line-height:1.6">偵察中…</div>
+  <!-- 🔍 iOS偵察浮層 v2·連續重讀（測完即刪） -->
+<div id="wzspy" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:13px;padding:12px 16px;border-bottom:3px solid #E30613;line-height:1.6">偵察中…</div>
 <script>
 (function(){
-  var tok='', keys=[];
-  try{ tok = localStorage.getItem('WZ_TOKEN')||''; }catch(e){ tok='讀取錯誤:'+e; }
-  try{ for(var i=0;i<localStorage.length;i++) keys.push(localStorage.key(i)); }catch(e){ keys=['錯誤']; }
-  var sa = (navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
   var el = document.getElementById('wzspy');
-  el.innerHTML =
-    '<b style="color:'+(tok?'#27ae60':'#E30613')+';font-size:16px">'+(tok?'✅ 有TOKEN':'❌ 桶是空的')+'</b>'+
-    ' ｜ 模式:'+(sa?'PWA圖示':'Safari')+
-    '<br>TOKEN: '+(tok? tok.slice(0,16)+'…' : '（空）')+
-    '<br>桶內keys: '+(keys.length? keys.join(',') : '（一個都沒有）')+
-    '<br><span style="color:#888;font-size:12px">'+new Date().toLocaleTimeString('zh-TW')+' ・此列8秒後消失</span>';
-  setTimeout(function(){ if(el) el.style.display='none'; }, 8000);
+  var sa = (navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+  var log = [];
+  var n = 0;
+  function read(){
+    var tok='';
+    try{ tok = localStorage.getItem('WZ_TOKEN')||''; }catch(e){ tok='ERR'; }
+    log.push('第'+(n+1)+'次('+(n*500)+'ms): '+(tok? '✅有 '+tok.slice(0,10) : '❌空'));
+    var keys=[];
+    try{ for(var i=0;i<localStorage.length;i++) keys.push(localStorage.key(i)); }catch(e){}
+    el.innerHTML =
+      '<b>模式:'+(sa?'真PWA(standalone)':'Safari分頁')+'</b>'+
+      '<br>'+log.join('<br>')+
+      '<br><span style="color:#888">桶內keys: '+(keys.length?keys.join(','):'（空）')+'</span>';
+    n++;
+    if(n<6) setTimeout(read, 500);
+    else { el.innerHTML += '<br><b style="color:#f39c12">↑截圖給我。此列15秒後消失</b>'; setTimeout(function(){el.style.display='none';},15000); }
+  }
+  read();
 })();
 </script>
 <!-- 🔍 偵察浮層結束 -->
