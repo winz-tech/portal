@@ -162,34 +162,6 @@
 </head>
 <body>
 
- <!-- 🔍 v4b：全程PWA內測試 -->
-<div id="wzspy" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:13px;padding:14px 16px;border-bottom:3px solid #E30613;line-height:1.7">
-  <span id="wzspy-txt">診斷中…</span>
-  <button id="wzspy-btn" style="margin-top:8px;padding:8px 16px;background:#E30613;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:bold">模擬登入：種 token cookie</button>
-</div>
-<script>
-(function(){
-  var txt = document.getElementById('wzspy-txt');
-  var btn = document.getElementById('wzspy-btn');
-  function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?m.pop():''; }
-  var sa=(navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
-
-  var ck = gc('WZ_TOKEN_CK');
-  txt.innerHTML =
-    '<b style="color:'+(ck?'#27ae60':'#E30613')+';font-size:16px">'+(ck?'✅ cookie 活著！方案甲成立 🎉':'❌ 目前無 token cookie')+'</b>'+
-    '<br>模式:'+(sa?'真PWA':'非PWA')+' ｜ WZ_TOKEN_CK: '+(ck? ck : '（空）');
-
-  btn.onclick = function(){
-    var fake = 'TESTTOK_' + Date.now();
-    document.cookie = 'WZ_TOKEN_CK=' + fake + '; max-age=' + (400*24*60*60) + '; path=/; SameSite=Lax';
-    txt.innerHTML = '<b style="color:#ffb300">🌱 已種 '+fake+'</b><br><b>現在：滑掉App → 從圖示重開 → 看上面變綠變紅</b>';
-    btn.style.display='none';
-  };
-})();
-</script>
-
-
-  
     
 <div class="grid"></div>
 <div class="trail" id="trail"></div>
@@ -213,6 +185,47 @@
 <script>
   var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
 
+  // ════════════════════════════════════════════════════
+  // ★ iOS 救生艇：冷啟動先看第一方 cookie 有沒有 token
+  //   有 → 驗證(B案:先驗才放行,離職者擋在門外) → 有效無感進系統
+  //   無效/沒有 → 正常顯示接待頁走登入
+  // ════════════════════════════════════════════════════
+  (function(){
+    function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
+    var ckTok = gc('WZ_TOKEN_CK');
+    if (!ckTok) return;   // 沒 cookie → 照常顯示接待頁
+
+    // 有 cookie → 亮著品牌開場畫面(本來就在),背景默默驗 token
+    // 驗證走 GAS 一個輕量端點:validateToken(token) 回 {ok:true/false}
+    var GAS = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+
+    // 用 fetch 打 GAS 的 validateToken(GET, 回 JSON)
+    // ⚠ GAS 要有對應路由 page=validate&t=xxx 回 {ok:bool}
+    var url = GAS + '?page=validate&t=' + encodeURIComponent(ckTok);
+    fetch(url, { method:'GET' })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) {
+          // ✅ token 有效 → 帶 token 無感進系統(rc 換碼那套或直接帶 t)
+          //   這裡用接力碼機制:GAS 收到會發碼跳回,但我們已經有 token,直接進最快
+          //   直接帶 token 進主系統(GAS 端 doGet 認 ?t= 存 localStorage)
+          location.replace(GAS + '?t=' + encodeURIComponent(ckTok));
+        } else {
+          // ❌ token 無效(離職/被踢/過期) → 清 cookie,停在接待頁走正常登入
+          try {
+            document.cookie = 'WZ_TOKEN_CK=; max-age=0; path=/; SameSite=Lax';
+            document.cookie = 'WZ_NAME_CK=; max-age=0; path=/; SameSite=Lax';
+          } catch(e){}
+          // 不跳,讓接待頁正常顯示(使用者按進入系統重新登入)
+        }
+      })
+      .catch(function(){
+        // 驗證失敗(網路抖)→ 保守起見不自動進,讓使用者手動按進入系統
+        // (不清 cookie,下次冷啟動再試)
+      });
+  })();
+
+  
  // 步步高升：生成一串奶油粉肉球(SVG)，逐顆延遲亮起（左下→右上）
   (function(){
     var trail = document.getElementById('trail');
