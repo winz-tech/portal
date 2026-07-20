@@ -161,18 +161,6 @@
 </style>
 </head>
 <body>
-
-  <!-- 🔍 冷啟動cookie檢查（測完刪）-->
-<div id="wzck" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:14px;padding:12px 16px;border-bottom:3px solid #E30613">
-<script>
-(function(){
-  function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?m.pop():''; }
-  var ck = gc('WZ_TOKEN_CK');
-  document.write('<b style="color:'+(ck?'#27ae60':'#E30613')+'">'+(ck?'✅ cookie有token':'❌ cookie空')+'</b> ｜ '+(ck? ck.slice(0,12)+'…':'（沒種進去）'));
-  setTimeout(function(){var e=document.getElementById('wzck');if(e)e.style.display='none';},12000);
-})();
-</script>
-</div>
     
 <div class="grid"></div>
 <div class="trail" id="trail"></div>
@@ -180,7 +168,7 @@
 <div class="stage">
   <img class="logo" src="logo.png" alt="穎利科技 WINZ" onerror="this.style.display='none'">
   <div class="brand">WINZ <b>//</b> PET OEM</div>
-  <h1 class="title">作業中心✅<span class="paw-dot"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:.5em;height:.5em;vertical-align:middle;fill:#ffb3c6"><ellipse cx="50" cy="66" rx="24" ry="19"/><ellipse cx="24" cy="42" rx="9" ry="12"/><ellipse cx="42" cy="30" rx="9" ry="13"/><ellipse cx="60" cy="30" rx="9" ry="13"/><ellipse cx="77" cy="42" rx="9" ry="12"/></svg></span></h1>
+  <h1 class="title">作業中心<span class="paw-dot"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:.5em;height:.5em;vertical-align:middle;fill:#ffb3c6"><ellipse cx="50" cy="66" rx="24" ry="19"/><ellipse cx="24" cy="42" rx="9" ry="12"/><ellipse cx="42" cy="30" rx="9" ry="13"/><ellipse cx="60" cy="30" rx="9" ry="13"/><ellipse cx="77" cy="42" rx="9" ry="12"/></svg></span></h1>
   <div class="sub">Operations Hub</div>
   <div class="divider"></div>
   <div class="company">穎利科技股份有限公司</div>
@@ -195,35 +183,6 @@
 
 <script>
  var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
-
-  // ════════════════════════════════════════════════════
-  // ★ iOS 救生艇：冷啟動看第一方 cookie 有沒有 token
-  //   有 → 問 validate(先驗才放行) → 有效帶 rc 無感進系統 / 無效踢回登入
-  //   無 → 照常顯示接待頁走登入
-  // ════════════════════════════════════════════════════
-  (function(){
-    function _gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
-    var _ckTok = _gc('WZ_TOKEN_CK');
-    if (!_ckTok) return;   // 沒 cookie → 照常顯示接待頁
-
-    // 有 cookie → 品牌開場畫面亮著,背景默默問 validate
-    fetch(TARGET_URL + '?page=validate&t=' + encodeURIComponent(_ckTok), { method:'GET' })
-      .then(function(r){ return r.json(); })
-      .then(function(res){
-        if (res && res.ok && res.rc) {
-          // ✅ 有效 → 帶 rc 接力碼無感進系統(走系統原本認得的路)
-          location.replace(TARGET_URL + '?rc=' + encodeURIComponent(res.rc));
-        } else {
-          // ❌ 無效(離職/被踢/過期) → 清 cookie,停在接待頁走正常登入
-          try {
-            document.cookie = 'WZ_TOKEN_CK=; max-age=0; path=/; SameSite=Lax';
-            document.cookie = 'WZ_NAME_CK=; max-age=0; path=/; SameSite=Lax';
-          } catch(e){}
-        }
-      })
-      .catch(function(){ /* 網路抖→不自動進,讓使用者手動按進入系統,不清cookie */ });
-  })();
-
   
  // 步步高升：生成一串奶油粉肉球(SVG)，逐顆延遲亮起（左下→右上）
   (function(){
