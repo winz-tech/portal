@@ -183,46 +183,34 @@
 </div>
 
 <script>
-  var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+ var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
 
   // ════════════════════════════════════════════════════
-  // ★ iOS 救生艇：冷啟動先看第一方 cookie 有沒有 token
-  //   有 → 驗證(B案:先驗才放行,離職者擋在門外) → 有效無感進系統
-  //   無效/沒有 → 正常顯示接待頁走登入
+  // ★ iOS 救生艇：冷啟動看第一方 cookie 有沒有 token
+  //   有 → 問 validate(先驗才放行) → 有效帶 rc 無感進系統 / 無效踢回登入
+  //   無 → 照常顯示接待頁走登入
   // ════════════════════════════════════════════════════
   (function(){
-    function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
-    var ckTok = gc('WZ_TOKEN_CK');
-    if (!ckTok) return;   // 沒 cookie → 照常顯示接待頁
+    function _gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
+    var _ckTok = _gc('WZ_TOKEN_CK');
+    if (!_ckTok) return;   // 沒 cookie → 照常顯示接待頁
 
-    // 有 cookie → 亮著品牌開場畫面(本來就在),背景默默驗 token
-    // 驗證走 GAS 一個輕量端點:validateToken(token) 回 {ok:true/false}
-    var GAS = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
-
-    // 用 fetch 打 GAS 的 validateToken(GET, 回 JSON)
-    // ⚠ GAS 要有對應路由 page=validate&t=xxx 回 {ok:bool}
-    var url = GAS + '?page=validate&t=' + encodeURIComponent(ckTok);
-    fetch(url, { method:'GET' })
+    // 有 cookie → 品牌開場畫面亮著,背景默默問 validate
+    fetch(TARGET_URL + '?page=validate&t=' + encodeURIComponent(_ckTok), { method:'GET' })
       .then(function(r){ return r.json(); })
       .then(function(res){
-        if (res && res.ok) {
-          // ✅ token 有效 → 帶 token 無感進系統(rc 換碼那套或直接帶 t)
-          //   這裡用接力碼機制:GAS 收到會發碼跳回,但我們已經有 token,直接進最快
-          //   直接帶 token 進主系統(GAS 端 doGet 認 ?t= 存 localStorage)
-          location.replace(GAS + '?t=' + encodeURIComponent(ckTok));
+        if (res && res.ok && res.rc) {
+          // ✅ 有效 → 帶 rc 接力碼無感進系統(走系統原本認得的路)
+          location.replace(TARGET_URL + '?rc=' + encodeURIComponent(res.rc));
         } else {
-          // ❌ token 無效(離職/被踢/過期) → 清 cookie,停在接待頁走正常登入
+          // ❌ 無效(離職/被踢/過期) → 清 cookie,停在接待頁走正常登入
           try {
             document.cookie = 'WZ_TOKEN_CK=; max-age=0; path=/; SameSite=Lax';
             document.cookie = 'WZ_NAME_CK=; max-age=0; path=/; SameSite=Lax';
           } catch(e){}
-          // 不跳,讓接待頁正常顯示(使用者按進入系統重新登入)
         }
       })
-      .catch(function(){
-        // 驗證失敗(網路抖)→ 保守起見不自動進,讓使用者手動按進入系統
-        // (不清 cookie,下次冷啟動再試)
-      });
+      .catch(function(){ /* 網路抖→不自動進,讓使用者手動按進入系統,不清cookie */ });
   })();
 
   
