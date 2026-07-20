@@ -161,6 +161,26 @@
 </style>
 </head>
 <body>
+
+  <!-- 🔍 cookie診斷 v3（測完刪） -->
+<div id="wzspy" style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#0a0a0c;color:#fff;font-family:-apple-system,sans-serif;font-size:14px;padding:14px 16px;border-bottom:3px solid #E30613;line-height:1.8">診斷中…</div>
+<script>
+(function(){
+  var el = document.getElementById('wzspy');
+  function gc(k){ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?m.pop():''; }
+  var ls='', ck='';
+  try{ ls = localStorage.getItem('WZ_TOKEN')||''; }catch(e){}
+  ck = gc('WZ_TOKEN_CK');
+  var sa=(navigator.standalone===true)||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+  el.innerHTML =
+    '<b>模式:'+(sa?'真PWA':'非PWA/瀏覽器')+'</b>'+
+    '<br>localStorage WZ_TOKEN: <b style="color:'+(ls?'#27ae60':'#E30613')+'">'+(ls?'有 '+ls.slice(0,10):'❌空')+'</b>'+
+    '<br>cookie WZ_TOKEN_CK: <b style="color:'+(ck?'#27ae60':'#E30613')+'">'+(ck?'✅有 '+ck.slice(0,10):'❌空')+'</b>'+
+    '<br>所有cookie: '+(document.cookie||'（完全沒有cookie）')+
+    '<br><span style="color:#888;font-size:12px">15秒後消失</span>';
+  setTimeout(function(){el.style.display='none';},15000);
+})();
+</script>
     
 <div class="grid"></div>
 <div class="trail" id="trail"></div>
