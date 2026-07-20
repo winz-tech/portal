@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>清除</title></head>
+<body style="background:#0a0a0c;color:#fff;font-family:sans-serif;padding:40px;text-align:center">
+<script>
+document.cookie = 'WZ_TOKEN_CK=; max-age=0; path=/; SameSite=Lax';
+document.cookie = 'WZ_NAME_CK=; max-age=0; path=/; SameSite=Lax';
+document.cookie = 'WZ_TOKEN_CK=; max-age=0; path=/';
+document.cookie = 'WZ_NAME_CK=; max-age=0; path=/';
+try{ localStorage.clear(); }catch(e){}
+document.write('<h2>已清除</h2><div style="margin-top:20px">剩餘 cookie: '+(document.cookie||'（空了！）')+'</div>');
+</script>
+</body></html>
