@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>登入偵察</title>
+<style>
+  body{font-family:-apple-system,"Microsoft JhengHei",sans-serif;background:#0a0a0c;color:#fff;padding:24px;line-height:1.7;font-size:16px}
+  .box{background:#15151a;border:1px solid #333;border-radius:12px;padding:18px;margin:14px 0}
+  .k{color:#888;font-size:13px}
+  .v{color:#E30613;font-weight:700;font-size:20px;word-break:break-all;margin-top:4px}
+  .ok{color:#27ae60}
+  h2{color:#E30613;font-size:18px}
+  .big{font-size:28px;font-weight:800;text-align:center;padding:20px;border-radius:12px;margin:14px 0}
+  .found{background:#0d2818;color:#27ae60;border:2px solid #27ae60}
+  .lost{background:#2a0d0d;color:#E30613;border:2px solid #E30613}
+</style>
+</head>
+<body>
+<h2>🔍 iOS 登入桶偵察</h2>
+<div class="k">開啟時間</div>
+<div class="v" id="now"></div>
+
+<div id="verdict"></div>
+
+<div class="box">
+  <div class="k">localStorage 裡的 WZ_TOKEN</div>
+  <div class="v" id="tok"></div>
+</div>
+<div class="box">
+  <div class="k">localStorage 裡的 WZ_NAME</div>
+  <div class="v" id="name"></div>
+</div>
+<div class="box">
+  <div class="k">這個桶裡所有的 key</div>
+  <div class="v" id="allkeys"></div>
+</div>
+<div class="box">
+  <div class="k">開啟模式</div>
+  <div class="v" id="mode"></div>
+</div>
+
+<script>
+  document.getElementById('now').textContent = new Date().toLocaleString('zh-TW');
+
+  var tok = '';
+  var name = '';
+  try { tok = localStorage.getItem('WZ_TOKEN') || ''; } catch(e){ tok = '❌讀取出錯：'+e; }
+  try { name = localStorage.getItem('WZ_NAME') || ''; } catch(e){ name = '❌'+e; }
+
+  document.getElementById('tok').textContent  = tok  ? tok  : '（空的）';
+  document.getElementById('name').textContent = name ? name : '（空的）';
+
+  var keys = [];
+  try { for (var i=0;i<localStorage.length;i++) keys.push(localStorage.key(i)); } catch(e){ keys=['❌'+e]; }
+  document.getElementById('allkeys').textContent = keys.length ? keys.join(' , ') : '（一個都沒有）';
+
+  // 判斷是不是從主畫面 PWA 圖示開的
+  var standalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  document.getElementById('mode').textContent = standalone ? 'PWA圖示（standalone）' : 'Safari瀏覽器';
+
+  var v = document.getElementById('verdict');
+  if (tok) {
+    v.className = 'big found';
+    v.textContent = '✅ 桶裡有 TOKEN';
+  } else {
+    v.className = 'big lost';
+    v.textContent = '❌ 桶裡是空的';
+  }
+</script>
+</body>
+</html>
