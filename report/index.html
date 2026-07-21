@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WINZ 工作報告</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0b0f;color:#8b90a0;
+    font-family:-apple-system,"Noto Sans TC",sans-serif;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+  .spin{width:34px;height:34px;border:3px solid #262a36;border-top-color:#E30613;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .t{font-size:14px;letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="spin"></div>
+<div class="t">正在開啟工作報告…</div>
+<script>
+  var EXEC = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbw5X6hfVD5RCEoulaT8BfmCiN4FQ2jocTl0O_y-07h4ET1sSyul5aMUvx6Zz8hqILFE6w/exec';
+  var k = new URLSearchParams(location.search).get('k') || '';
+  location.replace(EXEC + '?page=pubreport&k=' + encodeURIComponent(k));
+</script>
+</body>
+</html>
