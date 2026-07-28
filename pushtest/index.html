@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="./manifest.json">
+<title>WINZ Push Test</title>
+<style>
+body{background:#0a0a0c;color:#eee;font-family:"Noto Sans TC",sans-serif;padding:16px;margin:0}
+h3{color:#E30613;margin:16px 0 8px}
+button{background:#E30613;color:#fff;border:0;padding:14px 20px;font-size:16px;width:100%;margin:6px 0;border-radius:4px}
+button:disabled{background:#444}
+pre{background:#15151a;padding:10px;font-size:11px;white-space:pre-wrap;word-break:break-all;border-left:3px solid #E30613}
+.ok{color:#4caf50}.ng{color:#ff5252}
+</style></head><body>
+
+<h3>0. 環境檢查</h3>
+<pre id="env"></pre>
+
+<h3>1. 產生 VAPID 金鑰（只做一次）</h3>
+<button id="b1">產生金鑰對</button>
+<pre id="keys">尚未產生</pre>
+
+<h3>2. 訂閱推播</h3>
+<button id="b2">要求權限並訂閱</button>
+<pre id="sub">尚未訂閱</pre>
+
+<script>
+var $ = function(i){ return document.getElementById(i); };
+var PUB = localStorage.getItem('VAPID_PUB') || '';
+
+function b64url(buf){
+  var s = btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function u8(base64){
+  var p = '='.repeat((4 - base64.length % 4) % 4);
+  var b = atob((base64 + p).replace(/-/g,'+').replace(/_/g,'/'));
+  var a = new Uint8Array(b.length);
+  for (var i=0;i<b.length;i++) a[i] = b.charCodeAt(i);
+  return a;
+}
+
+// 環境檢查
+(function(){
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  var t = '';
+  t += 'standalone(主畫面模式)：' + (standalone ? '✅ 是' : '❌ 否 ← iOS 必須先加到主畫面！') + '\n';
+  t += 'serviceWorker：' + ('serviceWorker' in navigator ? '✅' : '❌') + '\n';
+  t += 'PushManager：' + ('PushManager' in window ? '✅' : '❌ ← iOS 分頁模式就是沒有') + '\n';
+  t += 'Notification：' + ('Notification' in window ? '✅ 目前='+Notification.permission : '❌') + '\n';
+  t += 'UA：' + navigator.userAgent;
+  $('env').textContent = t;
+  if (PUB) $('keys').textContent = '已存在公鑰：\n' + PUB;
+})();
+
+// 1. 產金鑰
+$('b1').onclick = async function(){
+  try{
+    var kp = await crypto.subtle.generateKey({name:'ECDSA', namedCurve:'P-256'}, true, ['sign','verify']);
+    var pub = b64url(await crypto.subtle.exportKey('raw', kp.publicKey));
+    var priv = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    localStorage.setItem('VAPID_PUB', pub);
+    PUB = pub;
+    $('keys').textContent =
+      '★ 公鑰(前端用，貼進程式)：\n' + pub +
+      '\n\n★ 私鑰 JWK(存進 Cloudflare Worker，千萬別外流)：\n' + JSON.stringify(priv) +
+      '\n\n★ 立刻複製走，關掉就沒了！';
+  }catch(e){ $('keys').textContent = '❌ ' + e.message; }
+};
+
+// 2. 訂閱（鐵律1：必須在真手點的事件裡）
+$('b2').onclick = async function(){
+  var out = $('sub');
+  try{
+    if (!PUB) { out.textContent = '❌ 請先產生金鑰'; return; }
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') { out.textContent = '❌ 使用者拒絕：' + perm; return; }
+
+    var reg = await navigator.serviceWorker.register('./sw.js', {scope:'./'});
+    await navigator.serviceWorker.ready;
+
+    var s = await reg.pushManager.subscribe({
+      userVisibleOnly: true,              // 鐵律2：iOS 強制
+      applicationServerKey: u8(PUB)
+    });
+    var j = s.toJSON();
+    out.innerHTML = '<span class="ok">✅ 訂閱成功！endpoint 網域=' +
+      new URL(j.endpoint).host + '</span>\n\n' + JSON.stringify(j, null, 2);
+
+    // 本機測一發（不經伺服器，純驗證顯示層）
+    reg.showNotification('WINZ 測試', {body:'能看到這則＝顯示層 OK', icon:'../icon-192.png'});
+  }catch(e){ out.innerHTML = '<span class="ng">❌ ' + e.name + '：' + e.message + '</span>'; }
+};
+</script>
+</body></html>
