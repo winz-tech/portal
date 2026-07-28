@@ -1,5 +1,5 @@
 // ===== 穎利作業中心 Service Worker v3（網路優先·HTML永不快取·強制更新）=====
-const CACHE = 'winz-portal-v3';   // ★大改版時改 v4、v5 強制更新
+const CACHE = 'winz-portal-v4';   // ★大改版時改 v4、v5 強制更新
 
 self.addEventListener('install', function(e){ self.skipWaiting(); });
 
