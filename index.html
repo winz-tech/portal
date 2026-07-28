@@ -158,12 +158,55 @@
   @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
 
   @media (prefers-reduced-motion:reduce){ *{ animation:none !important; opacity:1 !important; } }
+
+  /* ===== 推播詢問卡 ===== */
+  #pushAsk{
+    position:fixed; inset:0; z-index:9999; display:none;
+    background:rgba(5,5,7,.92); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:24px;
+  }
+  #pushAsk.show{ display:flex; }
+  #pushAsk .box{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red);
+    max-width:380px; width:100%; padding:26px 24px; text-align:center;
+    animation:rise .35s ease both;
+  }
+  #pushAsk .ic{ font-size:38px; line-height:1; margin-bottom:14px; }
+  #pushAsk h3{ font-size:19px; font-weight:900; letter-spacing:2px; margin-bottom:10px; }
+  #pushAsk p{ font-size:13px; color:#9a9aa2; line-height:1.8; margin-bottom:22px; }
+  #pushAsk .yes{
+    width:100%; border:0; cursor:pointer; padding:15px; font-family:var(--tc);
+    font-weight:900; font-size:16px; letter-spacing:3px; color:#fff;
+    background:linear-gradient(135deg,var(--red),var(--red-dark));
+    box-shadow:0 0 20px rgba(227,6,19,.4);
+  }
+  #pushAsk .no{
+    width:100%; border:0; cursor:pointer; padding:13px; margin-top:10px;
+    background:transparent; color:#6a6a72; font-family:var(--tc);
+    font-size:13px; letter-spacing:2px;
+  }
+  #pushAsk .cd{
+    margin-top:14px; font-family:var(--en); font-size:10px;
+    letter-spacing:3px; color:#44444c;
+  }
 </style>
 </head>
 <body>
     
 <div class="grid"></div>
 <div class="trail" id="trail"></div>
+
+<!-- ===== 推播詢問卡（第一次進系統才出現）===== -->
+<div id="pushAsk">
+  <div class="box">
+    <div class="ic">🔔</div>
+    <h3>開啟通知？</h3>
+    <p>待辦事項、簽核提醒、系統公告<br>會直接推到這台裝置，不用一直開系統看。</p>
+    <button class="yes" id="pushYes">開啟通知</button>
+    <button class="no"  id="pushNo">稍後再說</button>
+    <div class="cd" id="pushCd"></div>
+  </div>
+</div>
 
 <div class="stage">
   <img class="logo" src="logo.png" alt="穎利科技 WINZ" onerror="this.style.display='none'">
@@ -185,8 +228,8 @@
  var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
   // ═══ 第二刀:冷啟動讀 cookie → 後端驗證 → 無感進系統 ═══
   //   資安:cookie 只是鑰匙圈,放行永遠問後端 validate;token 被拔 → 當場清 cookie 踢登入
+  function getCk(k){ try{ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }catch(e){ return ''; } }
   (function(){
-    function getCk(k){ try{ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }catch(e){ return ''; } }
     function delCk(k){ try{ document.cookie = k+'=; max-age=0; path=/; SameSite=Lax'; }catch(e){} }
     var q = new URLSearchParams(location.search);
     if (q.get('logout') === '1') { delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK'); return; }   // 登出回來:清 cookie 停在接待頁
@@ -207,7 +250,8 @@
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (d && d.ok && d.rc) {
-          location.replace(TARGET_URL + '?rc=' + encodeURIComponent(d.rc));   // 無感進首頁(page 空=home)
+          var _go = TARGET_URL + '?rc=' + encodeURIComponent(d.rc);
+          _wzPushGate(tok, _go);          // ★ 推播詢問閘門：不用問就直接放行
         } else {
           delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK');     // token 無效(離職/被踢) → 清 cookie 留在接待頁
           _wzRestoreBtn();                                // 按鈕還回來,走手動登入
@@ -226,6 +270,105 @@
     }
   })();
   
+ // ═══ 推播詢問閘門 ═══
+  //   只在「第一次」問，之後永遠無感通過
+  //   ★ 稍後記憶用 cookie 不用 localStorage（iOS PWA 冷啟動會清 localStorage）
+  function _wzPushGate(token, goUrl){
+    var jumped = false;
+    function go(){ if (jumped) return; jumped = true; location.replace(goUrl); }
+
+    // rc 只有 60 秒，最多擋 40 秒就強制放行
+    var guard = setTimeout(go, 40000);
+
+    (async function(){
+      try{
+        // ---- 不該問的情形，直接放行 ----
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) return go();
+        if (typeof Notification === 'undefined') return go();
+        if (Notification.permission === 'denied') return go();      // 被封鎖，問也沒用
+
+        var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        var standalone = window.matchMedia('(display-mode: standalone)').matches
+                         || window.navigator.standalone === true;
+        if (isIOS && !standalone) return go();                      // Safari 分頁沒 PushManager
+
+        if (getCk('WZ_PUSH_LATER')) return go();                    // 按過稍後，14 天內不吵
+
+        var reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) reg = await navigator.serviceWorker.register('sw.js');
+        await navigator.serviceWorker.ready;
+        if (await reg.pushManager.getSubscription()) return go();   // 已訂閱
+
+        // ---- 拿公鑰 ----
+        var pub = '';
+        try{
+          var j = await (await fetch(TARGET_URL + '?page=pushkey')).json();
+          pub = j.key || '';
+        }catch(e){}
+        if (!pub) return go();
+
+        // ---- 顯示卡片 ----
+        clearTimeout(guard);
+        var box = document.getElementById('pushAsk');
+        box.classList.add('show');
+
+        var left = 35, cd = document.getElementById('pushCd');
+        cd.textContent = left + ' 秒後自動進入系統';
+        var tick = setInterval(function(){
+          left--;
+          cd.textContent = left + ' 秒後自動進入系統';
+          if (left <= 0){ clearInterval(tick); go(); }
+        }, 1000);
+
+        function done(){ clearInterval(tick); box.classList.remove('show'); go(); }
+
+        // 稍後再說 → 種 14 天 cookie
+        document.getElementById('pushNo').onclick = function(){
+          document.cookie = 'WZ_PUSH_LATER=1; max-age=' + (14*86400) + '; path=/; SameSite=Lax';
+          done();
+        };
+
+        // 開啟通知（鐵律1：必須在真手點事件裡呼叫 requestPermission）
+        document.getElementById('pushYes').onclick = async function(){
+          var btn = this;
+          btn.disabled = true; btn.textContent = '設定中…';
+          clearInterval(tick); cd.textContent = '';
+          try{
+            var perm = await Notification.requestPermission();
+            if (perm === 'granted'){
+              var u8 = function(b){
+                var p = '='.repeat((4 - b.length % 4) % 4);
+                var s = atob((b + p).replace(/-/g,'+').replace(/_/g,'/'));
+                var a = new Uint8Array(s.length);
+                for (var i=0;i<s.length;i++) a[i] = s.charCodeAt(i);
+                return a;
+              };
+              var ua = navigator.userAgent, dev = /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad'
+                     : /Android/.test(ua) ? 'Android'
+                     : /Macintosh/.test(ua) ? 'Mac' : 'Windows/其他';
+              var sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,                       // 鐵律2：iOS 強制
+                applicationServerKey: u8(pub)
+              });
+              await fetch(TARGET_URL, {                      // text/plain 避開 CORS preflight
+                method:'POST',
+                headers:{'Content-Type':'text/plain;charset=utf-8'},
+                body: JSON.stringify({ act:'pushSub', token:token,
+                                       sub: JSON.stringify(sub.toJSON()), device: dev })
+              });
+              reg.showNotification('WINZ 通知已開啟', {
+                body:'待辦與系統提醒會推到這裡', icon:'icon-192.png'
+              });
+            } else {
+              // 拒絕了就不用再問，permission 本身會擋住
+            }
+          }catch(e){}
+          done();
+        };
+      }catch(e){ go(); }
+    })();
+  }
+
  // 步步高升：生成一串奶油粉肉球(SVG)，逐顆延遲亮起（左下→右上）
   (function(){
     var trail = document.getElementById('trail');
