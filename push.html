@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>通知設定 - WINZ</title>
+<style>
+*{box-sizing:border-box}
+body{background:#0a0a0c;color:#eee;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;
+     margin:0;padding:24px 18px;min-height:100vh}
+h2{color:#E30613;font-size:20px;margin:0 0 4px;letter-spacing:2px}
+.sub{color:#777;font-size:12px;margin-bottom:24px;letter-spacing:1px}
+.card{background:#15151a;border-left:3px solid #E30613;padding:18px;margin-bottom:16px}
+.st{font-size:15px;margin-bottom:14px;line-height:1.6}
+.on{color:#4caf50}.off{color:#888}.ng{color:#ff5252}
+button{background:#E30613;color:#fff;border:0;padding:15px;font-size:16px;width:100%;
+       border-radius:4px;font-family:inherit;letter-spacing:1px}
+button.gray{background:#333}
+button:disabled{background:#2a2a2a;color:#666}
+.tip{color:#888;font-size:12px;line-height:1.7;margin-top:18px}
+a.back{display:block;text-align:center;color:#888;margin-top:28px;font-size:14px;text-decoration:none}
+</style></head><body>
+
+<h2>通知設定</h2>
+<div class="sub">WEB PUSH NOTIFICATION</div>
+
+<div class="card">
+  <div class="st" id="st">檢查中…</div>
+  <button id="btn" disabled>請稍候</button>
+</div>
+
+<div class="tip" id="tip"></div>
+<a class="back" id="back" href="#">← 返回系統</a>
+
+<script>
+var GAS_EXEC = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+
+var $ = function(i){ return document.getElementById(i); };
+var TOKEN = '', PUB = '', busy = false;
+
+function ck(n){
+  var m = document.cookie.match('(^|;)\\s*' + n + '\\s*=\\s*([^;]+)');
+  return m ? decodeURIComponent(m[2]) : '';
+}
+function qs(n){
+  var m = location.search.match(new RegExp('[?&]' + n + '=([^&]*)'));
+  return m ? decodeURIComponent(m[1]) : '';
+}
+function u8(b64){
+  var p = '='.repeat((4 - b64.length % 4) % 4);
+  var s = atob((b64 + p).replace(/-/g,'+').replace(/_/g,'/'));
+  var a = new Uint8Array(s.length);
+  for (var i=0;i<s.length;i++) a[i] = s.charCodeAt(i);
+  return a;
+}
+function device(){
+  var u = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(u)) return 'iPhone/iPad';
+  if (/Android/.test(u))          return 'Android';
+  if (/Macintosh/.test(u))        return 'Mac';
+  return 'Windows/其他';
+}
+// text/plain 避開 CORS preflight（GAS 不回應 OPTIONS）
+function gas(obj){
+  return fetch(GAS_EXEC, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(obj)
+  }).then(function(r){ return r.json(); });
+}
+
+$('back').onclick = function(ev){
+  ev.preventDefault();
+  var a = document.createElement('a');
+  a.href = GAS_EXEC; a.target = '_top'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click();          // 坑B：跳外部網域要模擬點擊
+};
+
+/* ---------- 啟動檢查 ---------- */
+(async function init(){
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  var standalone = window.matchMedia('(display-mode: standalone)').matches
+                   || window.navigator.standalone === true;
+
+  if (isIOS && !standalone){
+    $('st').innerHTML = '<span class="ng">⚠️ iPhone 必須從主畫面圖示開啟</span>';
+    $('tip').innerHTML = 'Safari 分頁模式沒有推播功能（Apple 的限制）。<br>'
+      + '請先用 Safari 開啟系統 → 分享 → 加入主畫面，<br>再從主畫面圖示進來設定。';
+    return;
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)){
+    $('st').innerHTML = '<span class="ng">此裝置或瀏覽器不支援推播</span>';
+    return;
+  }
+
+  // token：網址帶的優先（狗狗按鈕會帶），其次 cookie
+  TOKEN = qs('t') || ck('WZ_TOKEN_CK') || '';
+  if (TOKEN && qs('t')) history.replaceState(null,'',location.pathname);  // 清掉網址上的 token
+  if (!TOKEN){
+    $('st').innerHTML = '<span class="ng">尚未登入</span>';
+    $('tip').textContent = '請先回系統登入，再從選單進入通知設定。';
+    return;
+  }
+
+  try{
+    var j = await (await fetch(GAS_EXEC + '?page=pushkey')).json();
+    PUB = j.key || '';
+  }catch(e){}
+  if (!PUB){
+    $('st').innerHTML = '<span class="ng">無法取得推播金鑰</span>';
+    return;
+  }
+  await refresh();
+})();
+
+async function refresh(){
+  var reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) reg = await navigator.serviceWorker.register('./sw.js', {scope:'./'});
+  await navigator.serviceWorker.ready;
+
+  if (Notification.permission === 'denied'){
+    $('st').innerHTML = '<span class="ng">✕ 通知權限已被系統封鎖</span>';
+    $('btn').textContent = '無法開啟';
+    $('btn').disabled = true;
+    $('tip').innerHTML = 'iPhone：設定 → 通知 → 找到本 App → 允許通知<br>'
+                       + 'Android：長按圖示 → 應用程式資訊 → 通知';
+    return;
+  }
+
+  var s = await reg.pushManager.getSubscription();
+  if (s){
+    $('st').innerHTML = '<span class="on">● 推播已開啟</span><br>'
+      + '<span style="color:#666;font-size:12px">裝置：' + device() + '</span>';
+    $('btn').textContent = '關閉推播通知';
+    $('btn').className = 'gray';
+  } else {
+    $('st').innerHTML = '<span class="off">○ 推播未開啟</span>';
+    $('btn').textContent = '開啟推播通知';
+    $('btn').className = '';
+  }
+  $('btn').disabled = false;
+  $('tip').innerHTML = '開啟後，待辦提醒與系統通知會直接推到這台裝置。<br>每台裝置需各自設定一次。';
+}
+
+/* ---------- 開關（鐵律1：必須在真手點事件裡） ---------- */
+$('btn').onclick = async function(){
+  if (busy) return;
+  busy = true;
+  var old = $('btn').textContent;
+  $('btn').disabled = true;
+  $('btn').textContent = '處理中…';
+
+  try{
+    var reg = await navigator.serviceWorker.ready;
+    var cur = await reg.pushManager.getSubscription();
+
+    if (cur){
+      var ep = cur.endpoint;
+      await cur.unsubscribe();
+      await gas({ act:'pushUnsub', token:TOKEN, endpoint:ep });
+    } else {
+      var perm = await Notification.requestPermission();
+      if (perm !== 'granted'){ await refresh(); busy = false; return; }
+
+      var s = await reg.pushManager.subscribe({
+        userVisibleOnly: true,                       // 鐵律2：iOS 強制
+        applicationServerKey: u8(PUB)
+      });
+      var r = await gas({ act:'pushSub', token:TOKEN,
+                          sub: JSON.stringify(s.toJSON()), device: device() });
+      if (!r.ok){
+        await s.unsubscribe();                       // 後端沒存成功就別留孤兒訂閱
+        $('st').innerHTML = '<span class="ng">儲存失敗：' + (r.msg||'') + '</span>';
+        $('btn').textContent = old; $('btn').disabled = false; busy = false;
+        return;
+      }
+      reg.showNotification('WINZ 通知已開啟', {
+        body:'之後的待辦提醒會推到這裡', icon:'./icon-192.png'
+      });
+    }
+    await refresh();
+  }catch(e){
+    $('st').innerHTML = '<span class="ng">錯誤：' + e.message + '</span>';
+    $('btn').textContent = old; $('btn').disabled = false;
+  }
+  busy = false;
+};
+</script>
+</body></html>
