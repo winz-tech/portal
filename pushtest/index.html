@@ -90,5 +90,42 @@ $('b2').onclick = async function(){
     reg.showNotification('WINZ 測試', {body:'能看到這則＝顯示層 OK', icon:'../icon-192.png'});
   }catch(e){ out.innerHTML = '<span class="ng">❌ ' + e.name + '：' + e.message + '</span>'; }
 };
+
+// ===== 3. 真推播測試 =====
+var WORKER_URL = 'https://winz-push.winz-system.workers.dev';
+var SHARED     = 'winz2026push!x9k2';   // ← 改成 Cloudflare 那組
+
+var h3 = document.createElement('h3');
+h3.textContent = '3. 從伺服器真推一則';
+document.body.appendChild(h3);
+
+var btn = document.createElement('button');
+btn.textContent = '★ 推播測試（先切背景關螢幕再按更準）';
+document.body.appendChild(btn);
+
+var log = document.createElement('pre');
+log.textContent = '尚未測試';
+document.body.appendChild(log);
+
+btn.onclick = async function(){
+  try{
+    var reg = await navigator.serviceWorker.ready;
+    var s = await reg.pushManager.getSubscription();
+    if (!s) { log.textContent = '❌ 尚未訂閱，請先按上面第2步'; return; }
+    log.textContent = '送出中…';
+    var r = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        secret: SHARED,
+        sub: s.toJSON(),
+        title: 'WINZ 待辦提醒',
+        body: '你有 3 筆待辦未處理',
+        url: 'https://winz-tech.github.io/portal/index.html'
+      })
+    });
+    log.textContent = JSON.stringify(await r.json(), null, 2);
+  }catch(e){ log.textContent = '❌ ' + e.message; }
+};
 </script>
 </body></html>
