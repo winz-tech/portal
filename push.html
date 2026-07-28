@@ -114,6 +114,7 @@ $('back').onclick = function(ev){
 async function refresh(){
   var reg = await navigator.serviceWorker.getRegistration();
   if (!reg) reg = await navigator.serviceWorker.register('./sw.js', {scope:'./'});
+  try { await reg.update(); } catch(e){}        // 強制查新版，繞過 600 秒快取
   await navigator.serviceWorker.ready;
 
   if (Notification.permission === 'denied'){
