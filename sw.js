@@ -44,3 +44,30 @@ self.addEventListener('fetch', function(e){
     }).catch(function(){ return caches.match(e.request); })
   );
 });
+
+
+/* ===================== Web Push ===================== */
+self.addEventListener('push', function(event){
+  event.waitUntil((async function(){            // 鐵律3：漏 waitUntil 訂閱會死
+    var d = { title:'WINZ', body:'', url:'./index.html' };
+    try { if (event.data) d = Object.assign(d, event.data.json()); } catch(e){}
+    await self.registration.showNotification(d.title, {
+      body: d.body,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      data: { url: d.url }
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', function(event){
+  event.notification.close();
+  event.waitUntil((async function(){
+    var url = (event.notification.data && event.notification.data.url) || './index.html';
+    var list = await clients.matchAll({ type:'window', includeUncontrolled:true });
+    for (var i=0;i<list.length;i++){
+      if ('focus' in list[i]) { await list[i].focus(); return; }
+    }
+    if (clients.openWindow) await clients.openWindow(url);
+  })());
+});
