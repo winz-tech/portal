@@ -311,7 +311,21 @@
         var reg = await navigator.serviceWorker.getRegistration();
         if (!reg) { try { await navigator.serviceWorker.register('sw.js'); } catch(e){} }
         reg = await navigator.serviceWorker.ready;
-        if (await reg.pushManager.getSubscription()) return go();   // 已訂閱
+
+        // ★ 已訂閱 → 每次都把訂閱重送後端一次（自我修復）
+        //   舊版只檢查瀏覽器端，若後端寫入曾失敗就永遠補不回來，人會完全收不到通知
+        var _cur = await reg.pushManager.getSubscription();
+        if (_cur) {
+          fetch(TARGET_URL, {
+            method:'POST',
+            headers:{'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify({ act:'pushSub', token:token,
+                                   sub: JSON.stringify(_cur.toJSON()), device: _wzDev() })
+          }).then(function(r){ return r.text(); })
+            .then(function(t){ console.log('[push] 訂閱同步:', t.slice(0,80)); })
+            .catch(function(){});
+          return go();                                              // 不 await，不擋登入速度
+        }
 
         // ---- 拿公鑰 ----
         var pub = '';
