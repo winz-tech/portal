@@ -329,13 +329,18 @@
               userVisibleOnly: true,
               applicationServerKey: _wzB64(pub)
             });
-            await fetch(TARGET_URL, {
+            console.log('[push] 訂閱建立:', s2.endpoint.slice(0,50));
+            var r2 = await fetch(TARGET_URL, {
               method:'POST',
               headers:{'Content-Type':'text/plain;charset=utf-8'},
               body: JSON.stringify({ act:'pushSub', token:token,
                                      sub: JSON.stringify(s2.toJSON()), device: _wzDev() })
             });
-          }catch(e){}
+            var j2 = null;
+            try { j2 = await r2.json(); } catch(e2){}
+            console.log('[push] 後端回應:', JSON.stringify(j2));
+            if (!j2 || j2.ok === false) console.warn('[push] 寫入失敗,後端未收到訂閱');
+          }catch(e){ console.warn('[push] 靜默重訂失敗:', e && e.message); }
           return go();                                              // 不論成敗都放行，不彈卡
         }
 
@@ -387,15 +392,24 @@
                 userVisibleOnly: true,                       // 鐵律2：iOS 強制
                 applicationServerKey: u8(pub)
               });
-              await fetch(TARGET_URL, {                      // text/plain 避開 CORS preflight
+              var r3 = await fetch(TARGET_URL, {             // text/plain 避開 CORS preflight
                 method:'POST',
                 headers:{'Content-Type':'text/plain;charset=utf-8'},
                 body: JSON.stringify({ act:'pushSub', token:token,
                                        sub: JSON.stringify(sub.toJSON()), device: dev })
               });
-              reg.showNotification('WINZ 通知已開啟', {
-                body:'待辦與系統提醒會推到這裡', icon:'icon-192.png'
-              });
+              var j3 = null;
+              try { j3 = await r3.json(); } catch(e3){}
+              console.log('[push] 後端回應:', JSON.stringify(j3));
+              if (j3 && j3.ok !== false) {
+                reg.showNotification('WINZ 通知已開啟', {
+                  body:'待辦與系統提醒會推到這裡', icon:'icon-192.png'
+                });
+              } else {
+                reg.showNotification('通知設定未完成', {
+                  body:'請重新登入一次,或回報給管理者', icon:'icon-192.png'
+                });
+              }
             } else {
               // 拒絕了就不用再問，permission 本身會擋住
             }
@@ -456,7 +470,12 @@
   function launch(){
     if (launched) return; launched = true;
     document.getElementById('btnEnter').style.opacity = '.6';
-    window.location.href = TARGET_URL;
+    var tok = getCk('WZ_TOKEN_CK');
+    if (tok && Notification.permission === 'granted') {
+      _wzPushGate(tok, TARGET_URL);      // 只有已授權才走閘門 → 必定靜默重訂,不可能彈卡
+    } else {
+      window.location.href = TARGET_URL;
+    }
   }
   document.getElementById('btnEnter').addEventListener('click', launch);
   document.addEventListener('touchend', function(e){
