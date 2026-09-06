@@ -6,35 +6,90 @@
 <title>登入中…</title>
 <style>
   body{background:#0a0a0c;margin:0;min-height:100vh;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:18px;font-family:-apple-system,"Noto Sans TC",sans-serif}
+    align-items:center;justify-content:center;gap:18px;padding:24px;
+    font-family:-apple-system,"Noto Sans TC",sans-serif}
   .spin{width:40px;height:40px;border:3px solid #2a2a30;border-top-color:#E30613;
     border-radius:50%;animation:s .8s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
   .t{color:#fff;font-size:15px;font-weight:bold}
+  /* ★ 2026/09/04　種票失敗時才出現：不要再靜靜地跳走 */
+  #warn{display:none;max-width:340px;text-align:center;line-height:1.9;
+    font-size:13px;color:#ffb3b8;border:1px solid rgba(227,6,19,.45);
+    background:rgba(227,6,19,.08);padding:16px 18px}
+  #warn b{color:#fff}
+  #warn code{display:block;margin-top:8px;font-size:12px;color:#8a8a92;letter-spacing:1px}
 </style>
 </head>
 <body>
-  <div class="spin"></div>
-  <div class="t">登入中…</div>
+  <div class="spin" id="spin"></div>
+  <div class="t" id="msg">登入中…</div>
+  <div id="warn"></div>
 <script>
 (function(){
-  var p = new URLSearchParams(location.search);
-  var tok  = p.get('tok')  || '';
-  var name = p.get('name') || '';
-  var shared = p.get('shared') || '';
-  var go   = p.get('go')   || '';
-  if (tok && shared !== '1') {
-    try {
-      var maxage = 400*24*60*60;
-      document.cookie = 'WZ_TOKEN_CK=' + encodeURIComponent(tok) + '; max-age=' + maxage + '; path=/; SameSite=Lax';
-      if (name) document.cookie = 'WZ_NAME_CK=' + encodeURIComponent(name) + '; max-age=' + maxage + '; path=/; SameSite=Lax';
-    } catch(e){}
+  var MAXAGE = 400*24*60*60;
+
+  function setCk(k,v){
+    try{ document.cookie = k+'='+encodeURIComponent(v)+'; max-age='+MAXAGE+'; path=/; SameSite=Lax; Secure'; }catch(e){}
   }
-  // ★ 種完 cookie 等 350ms 再跳,給 iOS 把 cookie 寫進硬碟的時間
-  setTimeout(function(){
-    if (go) { location.replace(go); }
-    else { location.replace('https://winz-tech.github.io/portal/index.html'); }
-  }, 350);
+  function getCk(k){
+    try{ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
+    catch(e){ return ''; }
+  }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+
+  // 環境指紋（跟 index.html／01-auth 同一套寫法）
+  function env(){
+    var ua = navigator.userAgent, tp = navigator.maxTouchPoints || 0, o;
+    if (/iPhone|iPad|iPod/.test(ua))   o = 'iOS';
+    else if (/Macintosh/.test(ua))     o = (tp > 0 ? 'iOS-桌面模式' : 'Mac');
+    else if (/Android/.test(ua))       o = 'Android';
+    else                               o = 'Win';
+    var sa = false;
+    try { sa = window.matchMedia('(display-mode: standalone)').matches
+               || window.navigator.standalone === true; } catch(e){}
+    return o + (sa ? '·PWA' : '·瀏覽器') + '　' + screen.width + 'x' + screen.height + '　tp' + tp;
+  }
+
+  var p = new URLSearchParams(location.search);
+  var tok    = p.get('tok')    || '';
+  var name   = p.get('name')   || '';
+  var shared = p.get('shared') || '';
+  var go     = p.get('go')     || '';
+  var dest   = go || 'https://winz-tech.github.io/portal/index.html';
+
+  var wrote = true;          // 這次有沒有成功把票種下去
+  if (tok && shared !== '1') {
+    var now = String(Date.now());
+    setCk('WZ_TOKEN_CK', tok);
+    if (name) setCk('WZ_NAME_CK', name);
+    // ★ 種票時間：cookie 與 localStorage 各放一份。
+    //   下次冷啟動時比對誰還活著 —— 讓裝置自己說出 iOS 到底清掉了哪一種。
+    setCk('WZ_AT_CK', now);
+    lsSet('WZ_AT_LS', now);
+    // ★★ 種完立刻讀回來驗證。
+    //   舊版是「寫了就跳」，寫不進去也不會有人知道 —— 這就是這幾個月一直查不到病根的原因之一。
+    wrote = (getCk('WZ_TOKEN_CK') === tok);
+  }
+
+  function goNow(){ location.replace(dest); }
+
+  if (!wrote) {
+    // 種不進去 → 講出來，但不要擋人：看 6 秒還是照樣進系統
+    try {
+      document.getElementById('spin').style.display = 'none';
+      document.getElementById('msg').textContent = '這台裝置沒辦法記住登入';
+      var w = document.getElementById('warn');
+      w.innerHTML = '你還是可以正常使用系統，<br>只是<b>下次進來會再問一次登入</b>。<br>'
+                  + '請把下面這行 <b>截圖</b> 傳給元家'
+                  + '<code>SAVE-FAIL · ' + env() + '</code>';
+      w.style.display = 'block';
+    } catch(e){}
+    setTimeout(goNow, 6000);
+  } else {
+    // ★ 種完 cookie 等 350ms 再跳,給 iOS 把 cookie 寫進硬碟的時間
+    setTimeout(goNow, 350);
+  }
 })();
 </script>
 </body>
