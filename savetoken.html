@@ -6,90 +6,119 @@
 <title>登入中…</title>
 <style>
   body{background:#0a0a0c;margin:0;min-height:100vh;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:18px;padding:24px;
+    align-items:center;justify-content:center;gap:18px;padding:20px;
     font-family:-apple-system,"Noto Sans TC",sans-serif}
   .spin{width:40px;height:40px;border:3px solid #2a2a30;border-top-color:#E30613;
     border-radius:50%;animation:s .8s linear infinite}
   @keyframes s{to{transform:rotate(360deg)}}
   .t{color:#fff;font-size:15px;font-weight:bold}
-  /* ★ 2026/09/04　種票失敗時才出現：不要再靜靜地跳走 */
-  #warn{display:none;max-width:340px;text-align:center;line-height:1.9;
-    font-size:13px;color:#ffb3b8;border:1px solid rgba(227,6,19,.45);
-    background:rgba(227,6,19,.08);padding:16px 18px}
-  #warn b{color:#fff}
-  #warn code{display:block;margin-top:8px;font-size:12px;color:#8a8a92;letter-spacing:1px}
+  #manual{display:none;margin-top:6px;padding:14px 40px;text-decoration:none;
+    background:linear-gradient(135deg,#E30613,#8f0009);color:#fff;border-radius:8px;
+    font-size:16px;font-weight:bold;letter-spacing:2px;box-shadow:0 0 20px rgba(227,6,19,.4)}
+  #manual.show{display:block}
 </style>
 </head>
 <body>
   <div class="spin" id="spin"></div>
-  <div class="t" id="msg">登入中…</div>
-  <div id="warn"></div>
+  <div class="t" id="txt">登入中…</div>
+  <!-- ★【坑B】三件套的第三件：真 <a>，iOS 唯一 100% 有效的路 -->
+  <a id="manual" href="#" target="_top">繼續</a>
 <script>
-(function(){
-  var MAXAGE = 400*24*60*60;
+/* ════════════════════════════════════════════════════════════
+   portal/savetoken.html　2026/09/06
+   ── 這一支是從 WINZ-ClockIn/savetoken.html 原封搬過來的，
+      邏輯一行沒改（接力碼、白名單、迴圈斷路器、跳轉三件套全部保留）。
+      只動了三個地方，都標了 ★2026/09/06：
+        ① HOME 改成 portal 自己
+        ② 種完 cookie 立刻讀回來驗證（舊版是「寫了就跳」，寫不進去沒有人會知道）
+        ③ 種一個時間戳記號（cookie 一份、localStorage 一份），
+           讓 portal 首頁能顯示「票 C?L?」，下次才量得出來票有沒有種對容器
 
-  function setCk(k,v){
-    try{ document.cookie = k+'='+encodeURIComponent(v)+'; max-age='+MAXAGE+'; path=/; SameSite=Lax; Secure'; }catch(e){}
+   ⚠ 為什麼要搬過來：PWA 的 scope 只涵蓋 manifest.json 所在的資料夾。
+     捷徑裝的是 /portal/，卻被送去 /WINZ-ClockIn/ 種票 —— 那是 scope 外，
+     iOS 會把它丟進「App 內臨時瀏覽器」，票就種在那個一關就消失的容器裡。
+   ════════════════════════════════════════════════════════════ */
+(function(){
+  var WZ_EXEC = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
+  // ★ 只准跳回自己家。沒有白名單，?go=https://壞人.com 就是開放轉址漏洞（舊版有這個洞）
+  var ALLOW = ['https://winz-tech.github.io/', 'https://script.google.com/'];
+  var HOME  = 'https://winz-tech.github.io/portal/index.html';   // ★2026/09/06 改成 portal
+  var p      = new URLSearchParams(location.search);
+  var rc     = p.get('rc') || '';
+  var shared = p.get('shared') || '';
+  // ★ 不再接受 ?tok= —— 真鑰匙放網址會被記進瀏覽器歷史，那正是接力碼要防的事
+  function safeGo(u){
+    u = String(u || '');
+    for (var i = 0; i < ALLOW.length; i++) if (u.indexOf(ALLOW[i]) === 0) return u;
+    return HOME;
   }
+  var dest = safeGo(p.get('go') || '');
+  var man  = document.getElementById('manual');
+  // ★★ 迴圈斷路器 ★★
+  //   同一個瀏覽階段進來第 3 次 = 一定有哪裡在轉圈 → 什麼都不做，直接放行
+  //   寧可少種一次 cookie，也不要讓人卡在轉圈圈裡（已經吃過一次虧）
+  try {
+    var n = Number(sessionStorage.getItem('_wzStHit') || 0) + 1;
+    sessionStorage.setItem('_wzStHit', String(n));
+    if (n > 2) { location.replace(dest); return; }
+  } catch(e){}
+  function setCk(k, v, days){
+    try {
+      document.cookie = k + '=' + encodeURIComponent(v)
+        + '; max-age=' + (days*24*60*60) + '; path=/; SameSite=Lax; Secure';
+    } catch(e){}
+  }
+  // ★2026/09/06　讀得回來才算數
   function getCk(k){
-    try{ var m=document.cookie.match('(^|;)\\s*'+k+'\\s*=\\s*([^;]+)'); return m?decodeURIComponent(m.pop()):''; }
+    try { var m = document.cookie.match('(^|;)\\s*' + k + '\\s*=\\s*([^;]+)');
+          return m ? decodeURIComponent(m.pop()) : ''; }
     catch(e){ return ''; }
   }
-  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
-  function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
-
-  // 環境指紋（跟 index.html／01-auth 同一套寫法）
-  function env(){
-    var ua = navigator.userAgent, tp = navigator.maxTouchPoints || 0, o;
-    if (/iPhone|iPad|iPod/.test(ua))   o = 'iOS';
-    else if (/Macintosh/.test(ua))     o = (tp > 0 ? 'iOS-桌面模式' : 'Mac');
-    else if (/Android/.test(ua))       o = 'Android';
-    else                               o = 'Win';
-    var sa = false;
-    try { sa = window.matchMedia('(display-mode: standalone)').matches
-               || window.navigator.standalone === true; } catch(e){}
-    return o + (sa ? '·PWA' : '·瀏覽器') + '　' + screen.width + 'x' + screen.height + '　tp' + tp;
-  }
-
-  var p = new URLSearchParams(location.search);
-  var tok    = p.get('tok')    || '';
-  var name   = p.get('name')   || '';
-  var shared = p.get('shared') || '';
-  var go     = p.get('go')     || '';
-  var dest   = go || 'https://winz-tech.github.io/portal/index.html';
-
-  var wrote = true;          // 這次有沒有成功把票種下去
-  if (tok && shared !== '1') {
-    var now = String(Date.now());
-    setCk('WZ_TOKEN_CK', tok);
-    if (name) setCk('WZ_NAME_CK', name);
-    // ★ 種票時間：cookie 與 localStorage 各放一份。
-    //   下次冷啟動時比對誰還活著 —— 讓裝置自己說出 iOS 到底清掉了哪一種。
-    setCk('WZ_AT_CK', now);
-    lsSet('WZ_AT_LS', now);
-    // ★★ 種完立刻讀回來驗證。
-    //   舊版是「寫了就跳」，寫不進去也不會有人知道 —— 這就是這幾個月一直查不到病根的原因之一。
-    wrote = (getCk('WZ_TOKEN_CK') === tok);
-  }
-
-  function goNow(){ location.replace(dest); }
-
-  if (!wrote) {
-    // 種不進去 → 講出來，但不要擋人：看 6 秒還是照樣進系統
-    try {
+  var jumped = false;
+  function jump(url){
+    if (jumped) return; jumped = true;
+    man.setAttribute('href', url);
+    // ① 種完 cookie 等 350ms 再跳，給 iOS 把 cookie 寫進硬碟的時間
+    setTimeout(function(){ try { location.replace(url); } catch(e){} }, 350);
+    // ② 保底：800ms 再直跳一次（Android/桌機此時已離開，跑不到這；iOS 才會執行）
+    setTimeout(function(){ try { location.href = url; } catch(e){} }, 800);
+    // ③ 2.5 秒還在這頁 → 推出真 <a> 大鈕。iOS 唯一保證有效的路是「手指真的點到」
+    setTimeout(function(){
+      if (document.visibilityState !== 'visible') return;   // 已經跳走的人不會看到
       document.getElementById('spin').style.display = 'none';
-      document.getElementById('msg').textContent = '這台裝置沒辦法記住登入';
-      var w = document.getElementById('warn');
-      w.innerHTML = '你還是可以正常使用系統，<br>只是<b>下次進來會再問一次登入</b>。<br>'
-                  + '請把下面這行 <b>截圖</b> 傳給元家'
-                  + '<code>SAVE-FAIL · ' + env() + '</code>';
-      w.style.display = 'block';
-    } catch(e){}
-    setTimeout(goNow, 6000);
-  } else {
-    // ★ 種完 cookie 等 350ms 再跳,給 iOS 把 cookie 寫進硬碟的時間
-    setTimeout(goNow, 350);
+      document.getElementById('txt').textContent = '點一下繼續';
+      man.classList.add('show');
+    }, 2500);
   }
+  if (!rc) { jump(dest); return; }   // 沒帶碼 → 不做事，直接放行
+  // ★ 看門狗：後端不回應也一定要走，絕不把人卡在轉圈圈
+  var done = false;
+  var wd = setTimeout(function(){ if (!done) { done = true; jump(dest); } }, 6000);
+  fetch(WZ_EXEC + '?page=redeem&rc=' + encodeURIComponent(rc))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (done) return; done = true; clearTimeout(wd);
+      if (!d || !d.ok) { jump(dest); return; }   // 換碼失敗 → 放行，讓目的地頁自己走登入流程
+      if (d.name) setCk('WZ_NAME_CK', d.name, 400);                       // 姓名：零風險，一律種
+      if (shared !== '1' && d.token) setCk('WZ_TOKEN_CK', d.token, 400);  // 真鑰匙：只有個人電腦
+      // ★2026/09/06　種完立刻讀回來 + 蓋時間戳
+      //   舊版是「寫了就跳」，寫不進去也不會有人知道 —— 這就是這三個月查不到病根的原因之一。
+      //   時間戳 cookie 一份、localStorage 一份，portal 首頁會顯示成「票 C?L?」。
+      try {
+        var now = String(Date.now());
+        setCk('WZ_AT_CK', now, 400);
+        try { localStorage.setItem('WZ_AT_LS', now); } catch(e){}
+        if (shared !== '1' && d.token && getCk('WZ_TOKEN_CK') !== d.token) {
+          try { localStorage.setItem('WZ_SAVEFAIL_LS', now); } catch(e){}   // 種不進去，留個案發現場
+        }
+      } catch(e){}
+      var u = dest + (dest.indexOf('?') > -1 ? '&' : '?') + 'rc=' + encodeURIComponent(d.rc2 || '');
+      jump(d.rc2 ? u : dest);
+    })
+    .catch(function(){
+      if (done) return; done = true; clearTimeout(wd);
+      jump(dest);
+    });
 })();
 </script>
 </body>
