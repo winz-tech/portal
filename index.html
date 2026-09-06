@@ -248,22 +248,40 @@
     return o + (sa ? '·PWA' : '·瀏覽器') + '　' + screen.width + 'x' + screen.height + '　tp' + tp;
   }
 
+  function _wzAge(t){
+    var n = Number(t || 0);
+    if (!(n > 0)) return '';
+    var h = (Date.now() - n) / 3600000;
+    if (!isFinite(h) || h < 0) return '';
+    if (h < 1)  return Math.round(h*60) + 'm';
+    if (h < 48) return h.toFixed(1) + 'h';
+    return Math.round(h/24) + 'd';
+  }
+
+  // ★★ 「來過」記號：不管有沒有登入，只要開過這一頁就種。
+  //    ── 為什麼要跟「票」分開量：
+  //    票的記號要走完一次登入才會種，量一次就得登入一次，太貴而且容易分不清
+  //    「記號被清掉」和「記號從來沒種過」。這一組只要開過首頁就有，
+  //    下次冷啟動它還在不在，直接回答「這台裝置到底有沒有被清空」。
+  //    ★ 先讀再寫，順序不能顛倒 —— 顛倒了就永遠量到自己剛寫的那一筆。
+  var _WZ_SEEN = { c: getCk('WZ_SEEN_CK'), l: lsGet('WZ_SEEN_LS') };
+  (function(){
+    var v = _WZ_SEEN.c || _WZ_SEEN.l || String(Date.now());
+    setCk('WZ_SEEN_CK', v); lsSet('WZ_SEEN_LS', v);       // 有就沿用，沒有才種新的
+  })();
+
   // 只在「沒有票」時顯示 —— 那正好就是待會要重新登入的那一刻
   function _wzShowMark(){
     try {
       if (getCk('WZ_TOKEN_CK')) return;                  // 有票就什麼都不用講
       var atC = getCk('WZ_AT_CK'), atL = lsGet('WZ_AT_LS');
-      var at  = Number(atC || atL || 0);
-      var age = '';
-      if (at > 0) {
-        var h = (Date.now() - at) / 3600000;
-        if (!isFinite(h) || h < 0) age = '';
-        else if (h < 1)  age = Math.round(h*60) + 'm';
-        else if (h < 48) age = h.toFixed(1) + 'h';
-        else             age = Math.round(h/24) + 'd';
-      }
-      var code = 'C' + (atC ? '1' : '0') + 'L' + (atL ? '1' : '0')
-               + ' · ' + _wzEnv2() + (age ? '　' + age : '');
+      var tAge = _wzAge(atC || atL);
+      var sAge = _wzAge(_WZ_SEEN.c || _WZ_SEEN.l);
+      var code = '票 C' + (atC ? '1' : '0') + 'L' + (atL ? '1' : '0')
+               + (tAge ? ' ' + tAge : '')
+               + ' · 來過 C' + (_WZ_SEEN.c ? '1' : '0') + 'L' + (_WZ_SEEN.l ? '1' : '0')
+               + (sAge ? ' ' + sAge : '')
+               + ' · ' + _wzEnv2();
       var el = document.getElementById('wzMark');
       if (!el) return;
       el.innerHTML = '如果最近常常要重新登入，<br>請把下面這行 <b style="color:#8a8a92">截圖</b> 傳給元家'
@@ -278,6 +296,7 @@
     var q = new URLSearchParams(location.search);
     if (q.get('logout') === '1') {                       // 登出回來:清 cookie 停在接待頁
       delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK'); delCk('WZ_AT_CK'); lsDel('WZ_AT_LS');
+      document.addEventListener('DOMContentLoaded', _wzShowMark);   // 登出後也看得到指紋
       return;
     }
     var tok = getCk('WZ_TOKEN_CK');
