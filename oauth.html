@@ -9,6 +9,19 @@
     var state = p.get('state') || '';     // 來源專案 exec（OAuth state 原樣帶回）
     var err   = p.get('error') || '';
     var GAS = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
+
+    // ★★ 2026/09/06　只是插一支溫度計，行為完全沒動 ★★
+    //   這一站（oauth.html）是 winz-tech.github.io，跟 PWA 的首頁同一個網域。
+    //   問題是：在 iPhone 上，它到底跑在「PWA 主容器」還是「App 內臨時瀏覽器」？
+    //   ── 如果是主容器，那這裡就是種票最好的地方，整條病根一行 fetch 就解決；
+    //      如果是臨時瀏覽器，那不管怎麼種都白種，得換別條路。
+    //   所以在這裡蓋一個時間戳，之後回 PWA 首頁看得到就是主容器，看不到就不是。
+    try {
+      var now = String(Date.now());
+      document.cookie = 'WZ_OA_CK=' + now + '; max-age=' + (400*24*60*60) + '; path=/; SameSite=Lax; Secure';
+      try { localStorage.setItem('WZ_OA_LS', now); } catch(e){}
+    } catch(e){}
+
     if (err || !code) { location.replace(GAS + '?page=login'); return; }
     // replace：不留歷史；直接以「網域格式」新導頁跳回 → 不會被插 /u/N/
     location.replace(GAS + '?authland=1&code=' + encodeURIComponent(code) + '&back=' + encodeURIComponent(state));
