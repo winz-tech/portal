@@ -12,7 +12,6 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden;background:#0a0a0c}
-  /* 瀏海／底部安全區：外殼自己吃掉，內層 GAS 讀不到 env() */
   #pad{position:fixed;inset:0;padding-top:env(safe-area-inset-top,0px);background:#0a0a0c}
   #frame{width:100%;height:100%;border:0;display:block;background:#0a0a0c}
   #veil{position:fixed;inset:0;z-index:10;background:#0a0a0c;
@@ -46,31 +45,31 @@
 
 <script>
 /* ════════════════════════════════════════════════════════════
-   portal/app.html　外殼（試作）　2026/09/06
+   portal/app.html　外殼　v2　2026/09/06
    ── 骨架抄自元家自己的家計簿 vladjia.github.io/Jia-Cai/index.html
-   目的兩個：
-     ① 頂層永遠停在 winz-tech.github.io → iOS 不會再開「App 內臨時瀏覽器」
-     ② script.google.com 那條白色橫幅（「這個應用程式是由 Google Apps Script
-        的使用者建立」）只在頂層才長得出來，包進 iframe 就沒了
 
-   ⚠ 這一版是「試看看」用的，沒有任何人的捷徑會走到它。
-     壞掉不影響任何人 —— 可以放心開。
+   在做什麼：把 GAS 包進 iframe，頂層永遠停在 winz-tech.github.io。
+     ① iOS 不會再開「App 內臨時瀏覽器」→ 票、裝置ID、推播訂閱、
+        「我按過 ✕ 了」全部記得住
+     ② script.google.com 那條白色橫幅只在頂層才長得出來 → 包進來就沒了
 
-   ⚠ 內層 GAS 必須有 .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-     才嵌得進來，否則會是一片空白。
+   換頁怎麼運作（v2 新增）：
+     內層呼叫 wzGo(url)（定義在 01-auth，34 支共用）
+       → window.top.postMessage({wz:'shell-nav', url})
+       → 這裡收到，立刻回一個 {wz:'shell-ack'} 讓內層知道「有殼接住了」
+       → 這裡去換一張新鮮的 rc，塞進 iframe.src
+     內層沒收到 ack（250ms）→ 當作沒有殼，照原本的方式自己跳。
+     ★ 所以「有殼」「沒殼」兩種都活，電腦直接開 GAS 網址的人完全不受影響。
 
-   ⚠ 尚未處理：內層頁面之間的切換。
-     現在 34 支系統互跳用的是頂層跳轉（window.top.location），
-     那一跳會把這個殼整個掀掉 → 橫幅回來、scope 也出去。
-     正解是內層改成 postMessage 通知外殼換頁（家計簿的 famnav 那一套），
-     下面已經先把接收端寫好了，等內層改。
+   ⚠ 內層 GAS 的每個 page 分支都要有
+     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+     否則那一頁在殼裡會是一片空白。
    ════════════════════════════════════════════════════════════ */
 (function(){
-  // ── 目前只掛打卡專案（試作階段）。之後要多支就往這裡加。
-  var APPS = {
-    punch: 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec'
-  };
-  var EXEC = APPS.punch;
+  // 打卡專案（09-人事管理-考勤薪資系統）。抽屜裡的頁全部都在這一支。
+  var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
+  // ★ 只准載自己人。沒有白名單，內層被注入就能把使用者導去任何地方。
+  var ALLOW = ['https://script.google.com/'];
 
   var frame = document.getElementById('frame');
   var veil  = document.getElementById('veil');
@@ -84,12 +83,18 @@
           return m ? decodeURIComponent(m.pop()) : ''; }
     catch(e){ return ''; }
   }
-  function fail(title, detail, btnText, btnHref){
-    spin.style.display = 'none';
+  function showVeil(title, detail, btnText, btnHref){
+    spin.style.display = detail ? 'none' : '';
     msg.textContent = title;
     sub.innerHTML = detail || '';
     if (btnText){ go.textContent = btnText; go.setAttribute('href', btnHref || 'index.html'); go.classList.add('on'); }
+    else { go.classList.remove('on'); }
     veil.classList.remove('hide');
+  }
+  function safeUrl(u){
+    u = String(u || '');
+    for (var i = 0; i < ALLOW.length; i++) if (u.indexOf(ALLOW[i]) === 0) return u;
+    return '';
   }
 
   // 外層網址的 ?page= 原樣帶進內層（app.html?page=leave → 內層開請假）
@@ -99,41 +104,44 @@
   }
 
   var watchdog = null;
-  function load(page){
-    page = page || outerPage();
-    veil.classList.remove('hide');
-    go.classList.remove('on');
-    spin.style.display = '';
-    msg.textContent = '連線中…';
-    sub.textContent = '';
+  // url 省略 → 用外層 ?page= 組打卡專案的網址
+  function load(url){
+    var target = url ? safeUrl(url) : (PUNCH + '?page=' + encodeURIComponent(outerPage()));
+    if (!target){                                    // 不在白名單 → 不載，也不靜靜吞掉
+      showVeil('無法開啟', '這個位置不在允許範圍內。', '回首頁', 'index.html');
+      return;
+    }
+    showVeil('連線中…', '');
     clearTimeout(watchdog);
     watchdog = setTimeout(function(){
-      fail('連線逾時', '網路慢或系統忙碌，<br>可以再試一次。', '重新載入', 'javascript:location.reload()');
+      showVeil('連線逾時', '網路慢或系統忙碌，<br>可以再試一次。', '重新載入', 'javascript:location.reload()');
     }, 20000);
 
     var tok = getCk('WZ_TOKEN_CK');
     if (!tok){
       clearTimeout(watchdog);
-      fail('尚未登入', '請先從首頁登入一次，<br>之後這裡就會自動進入。', '前往登入', 'index.html');
+      showVeil('尚未登入', '請先從首頁登入一次，<br>之後這裡就會自動進入。', '前往登入', 'index.html');
       return;
     }
 
-    // ★ 每次載入都跟後端要一張新鮮的接力碼（rc 只活 60 秒，不能重用）
-    fetch(EXEC + '?page=validate&t=' + encodeURIComponent(tok) + '&fresh=1')
+    // ★ 每次載入都跟後端要一張新鮮的接力碼。
+    //   rc 只活 60 秒、用過即焚，所以不能重用，也不能提前拿。
+    //   接力碼是跨專案通用的 —— 換到別支專案也是靠這張。
+    fetch(PUNCH + '?page=validate&t=' + encodeURIComponent(tok) + '&fresh=1')
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (!d || !d.ok){
           clearTimeout(watchdog);
-          fail('登入已失效', '請重新登入一次。', '前往登入', 'index.html');
+          showVeil('登入已失效', '請重新登入一次。', '前往登入', 'index.html');
           return;
         }
-        var u = EXEC + '?page=' + encodeURIComponent(page);
-        if (d.rc) u += '&rc=' + encodeURIComponent(d.rc);
+        var u = target;
+        if (d.rc) u += (u.indexOf('?') > -1 ? '&' : '?') + 'rc=' + encodeURIComponent(d.rc);
         frame.src = u;
       })
       .catch(function(){
         clearTimeout(watchdog);
-        fail('連線失敗', '請確認網路後再試一次。', '重新載入', 'javascript:location.reload()');
+        showVeil('連線失敗', '請確認網路後再試一次。', '重新載入', 'javascript:location.reload()');
       });
   }
 
@@ -143,23 +151,30 @@
     setTimeout(function(){ veil.classList.add('hide'); }, 350);
   });
 
-  // ── 內層喊話（等 GAS 端改成 postMessage 之後才會用到）──────────
+  // ── 內層喊話 ────────────────────────────────────────────────
   window.addEventListener('message', function(ev){
     var o = ev.origin || '';
+    // GAS 的使用者內容跑在 *.googleusercontent.com；外層包裝是 script.google.com
     if (!/\.googleusercontent\.com$/.test(o) && o !== 'https://script.google.com') return;
     var d = ev.data; if (!d) return;
-    if (d.t === 'wznav'){                                  // 換頁：外殼重新載入 iframe
-      var p = String(d.page || 'punch');
-      try { history.replaceState(null, '', '?page=' + encodeURIComponent(p)); } catch(e){}
-      load(p);
+
+    if (d.wz === 'shell-nav'){
+      // ★ 先回 ack，讓內層知道「有殼接住了，你不要自己跳」。
+      //   內層等 250ms，所以這一句要在任何 await／fetch 之前回。
+      try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
+      var u = safeUrl(d.url);
+      if (!u) return;                                 // 不是自己人 → 什麼都不做（內層會逾時自己跳）
+      // 網址列同步，讓重新整理回到同一頁
+      try {
+        var pg = (u.match(/[?&]page=([^&]+)/) || [])[1] || '';
+        history.replaceState(null, '', pg ? ('?page=' + pg) : location.pathname);
+      } catch(e){}
+      load(u);
       return;
     }
-    if (d.t === 'wzurl'){                                  // 只換網址不重載
-      var q = String(d.page || '');
-      try { history.replaceState(null, '', q ? ('?page=' + encodeURIComponent(q)) : location.pathname); } catch(e){}
-      return;
-    }
-    if (d.t === 'wzlogout'){
+
+    if (d.wz === 'shell-logout'){
+      try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
       frame.src = 'about:blank';
       location.replace('index.html?logout=1');
       return;
