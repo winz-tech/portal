@@ -69,7 +69,13 @@
   // 打卡專案（09-人事管理-考勤薪資系統）。抽屜裡的頁全部都在這一支。
   var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
   // ★ 只准載自己人。沒有白名單，內層被注入就能把使用者導去任何地方。
-  var ALLOW = ['https://script.google.com/'];
+  // ★★ 2026/09/06　而且只認「已經加過 ALLOWALL 的專案」。
+  //   沒加那一行的專案嵌進來會是一片空白 —— 那比掀殼更糟（掀殼至少還能用）。
+  //   不在名單上 → 外殼不回應 → 內層等 250ms 自己頂層跳出去。**能用優先。**
+  //   之後每推一支專案，就把它的部署碼加進這個陣列。
+  var SHELL_OK = [
+    'AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3'  // 09-人事管理-考勤薪資系統
+  ];
 
   var frame = document.getElementById('frame');
   var veil  = document.getElementById('veil');
@@ -93,8 +99,9 @@
   }
   function safeUrl(u){
     u = String(u || '');
-    for (var i = 0; i < ALLOW.length; i++) if (u.indexOf(ALLOW[i]) === 0) return u;
-    return '';
+    if (u.indexOf('https://script.google.com/') !== 0) return '';
+    var id = (u.match(/\/s\/([^\/?]+)/) || [])[1] || '';       // ★ 比部署碼不比網址（【坑L】）
+    return (SHELL_OK.indexOf(id) > -1) ? u : '';
   }
 
   // 外層網址的 ?page= 原樣帶進內層（app.html?page=leave → 內層開請假）
@@ -159,11 +166,12 @@
     var d = ev.data; if (!d) return;
 
     if (d.wz === 'shell-nav'){
-      // ★ 先回 ack，讓內層知道「有殼接住了，你不要自己跳」。
-      //   內層等 250ms，所以這一句要在任何 await／fetch 之前回。
-      try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
       var u = safeUrl(d.url);
-      if (!u) return;                                 // 不是自己人 → 什麼都不做（內層會逾時自己跳）
+      // ★ 不在名單上就「不要回 ack」——讓內層逾時後自己頂層跳出去。
+      //   （回了 ack 卻載不進來，使用者會看到一片空白，那比掀殼更糟。）
+      if (!u) return;
+      // ★ 確認接得住才回 ack，而且要在任何 fetch 之前回 —— 內層只等 250ms。
+      try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
       // 網址列同步，讓重新整理回到同一頁
       try {
         var pg = (u.match(/[?&]page=([^&]+)/) || [])[1] || '';
