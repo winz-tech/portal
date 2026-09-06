@@ -275,10 +275,14 @@
     try {
       if (getCk('WZ_TOKEN_CK')) return;                  // 有票就什麼都不用講
       var atC = getCk('WZ_AT_CK'), atL = lsGet('WZ_AT_LS');
+      var oaC = getCk('WZ_OA_CK'), oaL = lsGet('WZ_OA_LS');
       var tAge = _wzAge(atC || atL);
       var sAge = _wzAge(_WZ_SEEN.c || _WZ_SEEN.l);
+      var oAge = _wzAge(oaC || oaL);
       var code = '票 C' + (atC ? '1' : '0') + 'L' + (atL ? '1' : '0')
                + (tAge ? ' ' + tAge : '')
+               + ' · 登 C' + (oaC ? '1' : '0') + 'L' + (oaL ? '1' : '0')
+               + (oAge ? ' ' + oAge : '')
                + ' · 來過 C' + (_WZ_SEEN.c ? '1' : '0') + 'L' + (_WZ_SEEN.l ? '1' : '0')
                + (sAge ? ' ' + sAge : '')
                + ' · ' + _wzEnv2();
@@ -296,6 +300,7 @@
     var q = new URLSearchParams(location.search);
     if (q.get('logout') === '1') {                       // 登出回來:清 cookie 停在接待頁
       delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK'); delCk('WZ_AT_CK'); lsDel('WZ_AT_LS');
+      delCk('WZ_OA_CK'); lsDel('WZ_OA_LS');                         // 登出把三站記號一起歸零，下次量才乾淨
       document.addEventListener('DOMContentLoaded', _wzShowMark);   // 登出後也看得到指紋
       return;
     }
