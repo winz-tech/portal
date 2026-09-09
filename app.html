@@ -116,15 +116,25 @@
   }
 
   // 外層網址的 ?page= 原樣帶進內層（app.html?page=leave → 內層開請假）
+  // ★ 2026/09/09：不再預設 'punch' —— 沒帶 page 代表「不知道要看什麼」，
+  //   不能偷偷幫使用者決定去打卡，要退回 index.html 讓他自己選。
   function outerPage(){
-    try { return new URLSearchParams(location.search).get('page') || 'punch'; }
-    catch(e){ return 'punch'; }
+    try { return new URLSearchParams(location.search).get('page') || ''; }
+    catch(e){ return ''; }
   }
 
   var watchdog = null;
   // url 省略 → 用外層 ?page= 組打卡專案的網址
+  // ★ 2026/09/09：沒有 url、也沒有外層 ?page= → 不再偷偷預設打卡，
+  //   直接退回 index.html。「一開 portal 就跳打卡」就是這裡原本
+  //   無條件 fallback 到 PUNCH 造成的。
   function load(url){
-    var target = url ? safeUrl(url) : (PUNCH + '?page=' + encodeURIComponent(outerPage()));
+    var pg = outerPage();
+    if (!url && !pg){
+      location.replace('index.html');
+      return;
+    }
+    var target = url ? safeUrl(url) : (PUNCH + '?page=' + encodeURIComponent(pg));
     if (!target){                                    // 不在白名單 → 不載，也不靜靜吞掉
       showVeil('無法開啟', '這個位置不在允許範圍內。', '回首頁', 'index.html');
       return;
