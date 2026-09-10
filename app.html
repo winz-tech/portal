@@ -166,6 +166,19 @@
       showVeil('連線逾時', '網路慢或系統忙碌，<br>可以再試一次。', '重新載入', 'javascript:location.reload()');
     }, 20000);
 
+    // ★2026/09/10 網址已經自帶接力碼 → 直接載，不要再去換一張。
+    //   ⚠ 為什麼一定要有這一條：
+    //     ① 現場 PIN 的卡片是用【那個人】的 token 發碼的。
+    //        殼手上的 WZ_TOKEN_CK 是【設備】的 ——
+    //        再換一張會把「那個人」洗成「產線2平板」，章就簽了個寂寞。
+    //     ② 平板根本沒有 WZ_TOKEN_CK 這個 cookie，
+    //        所以會卡在「尚未登入 → 前往登入」→ 回來又被擋 → 無限迴圈。
+    //   ⚠ 帶碼的人已經自己證明過身分了，殼不該再插一手。
+    if (/[?&]rc=/.test(target)){
+      frame.src = target;
+      return;
+    }
+
     var tok = getCk('WZ_TOKEN_CK');
     if (!tok){
       clearTimeout(watchdog);
