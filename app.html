@@ -237,9 +237,20 @@
       // ★ 確認接得住才回 ack，而且要在任何 fetch 之前回 —— 內層只等 250ms。
       try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
       // 網址列同步，讓重新整理回到同一頁
+      // 網址列同步，讓重新整理回到同一頁
+      // ⚠ 只有【打卡專案】的頁可以寫 ?page=。
+      //   因為 load() 在沒有 url 時，一律把 ?page= 當成【打卡專案】的頁去組網址 ——
+      //   把別支專案的 page 寫上去，重新整理就會跑去打卡專案找同名的頁，
+      //   找不到就落到打卡首頁。
+      //   ★ 2026/09/10 現場 PIN 點「生產日報表」踩到：登入完竟然跳到打卡畫面。
+      //   ★ 這很可能就是「portal 常常跳到打卡」的其中一條路。
+      // ⚠ 非打卡的頁一律【不動網址】→ 重新整理回到最初那一頁
+      //   （平板是 ?go=field-pin，也就是回 PIN 選人畫面）。
+      //   共用平板上這反而是對的：重整不該接續上一個人的畫面。
       try {
+        var isPunch = (u.indexOf(PUNCH) === 0);
         var pg = (u.match(/[?&]page=([^&]+)/) || [])[1] || '';
-        history.replaceState(null, '', pg ? ('?page=' + pg) : location.pathname);
+        if (isPunch) history.replaceState(null, '', pg ? ('?page=' + pg) : location.pathname);
       } catch(e){}
       load(u);
       return;
