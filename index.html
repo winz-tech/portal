@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <script>
+// ★2026/09/10 產線平板專用：開機直接進 PIN 選人畫面，不經過作業中心。
+//   ⚠ 用「網址帶一次參數 + localStorage 記住」，不是靠判斷帳號 ——
+//     因為這一頁跑的時候還沒有登入，根本不知道是誰。
+//   平板加到主畫面時網址帶 ?pad=1，之後每次開都直接進 PIN。
+//   要取消：用 ?pad=0 開一次就好。
+(function(){
+  var PIN_URL = 'https://script.google.com/a/macros/winz-tech.com/s/'
+              + 'AKfycbzjZnB5yGU4416GcuR8dpzn0_1SijpF6Aj3o_rTpmPCoa_Sz5ucmb89ulteF8bDwfeB'
+              + '/exec?page=field-pin';
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get('pad') === '1') localStorage.setItem('WZ_PAD', '1');
+    if (q.get('pad') === '0') localStorage.removeItem('WZ_PAD');
+    if (localStorage.getItem('WZ_PAD') === '1') location.replace(PIN_URL);
+  } catch(e){}
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>穎利科技｜作業中心</title>
