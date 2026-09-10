@@ -86,8 +86,19 @@
   //   之後每推一支專案，就把它的部署碼加進這個陣列。
     var SHELL_OK = [
     'AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3',  // 09-人事管理-考勤薪資系統
-    'AKfycbzv6_SW-xS6_Rnbbjdc_DKLN8VSc2IsbBtzMMsdauC-LqXPrEfYnGe_w54QBL3t6OL_YQ'  // 生產管理
+    'AKfycbzv6_SW-xS6_Rnbbjdc_DKLN8VSc2IsbBtzMMsdauC-LqXPrEfYnGe_w54QBL3t6OL_YQ',  // 生產管理
+    'AKfycbzjZnB5yGU4416GcuR8dpzn0_1SijpF6Aj3o_rTpmPCoa_Sz5ucmb89ulteF8bDwfeB'   // 01-製令領料退料單（現場PIN／發料登記）
   ];
+
+  // ★2026/09/10 具名捷徑：外層 ?go=field-pin 就開現場 PIN 終端。
+  //   ⚠ 用【具名】不用「?u=整串網址」——
+  //     網址列上放一串可控的目標，等於把白名單的判斷交給打字的人。
+  //     具名的話，能開什麼在這裡就看得完（【架構-3】指名不要形容）。
+  var SHELL_GO = {
+    'field-pin': 'https://script.google.com/a/macros/winz-tech.com/s/'
+               + 'AKfycbzjZnB5yGU4416GcuR8dpzn0_1SijpF6Aj3o_rTpmPCoa_Sz5ucmb89ulteF8bDwfeB'
+               + '/exec?page=field-pin'
+  };
 
   var frame = document.getElementById('frame');
   var veil  = document.getElementById('veil');
@@ -123,6 +134,10 @@
     try { return new URLSearchParams(location.search).get('page') || ''; }
     catch(e){ return ''; }
   }
+  function outerGo(){
+    try { return new URLSearchParams(location.search).get('go') || ''; }
+    catch(e){ return ''; }
+  }
 
   var watchdog = null;
   // url 省略 → 用外層 ?page= 組打卡專案的網址
@@ -130,12 +145,17 @@
   //   直接退回 index.html。「一開 portal 就跳打卡」就是這裡原本
   //   無條件 fallback 到 PUNCH 造成的。
   function load(url){
-    var pg = outerPage();
-    if (!url && !pg){
+    var pg  = outerPage();
+    var gok = outerGo();
+    if (!url && !pg && !gok){
       location.replace('index.html');
       return;
     }
-    var target = url ? safeUrl(url) : (PUNCH + '?page=' + encodeURIComponent(pg));
+    // ⚠ 具名捷徑也要過 safeUrl —— 名字對不對是一回事，
+    //   它指到的部署碼在不在白名單上是另一回事，兩個都要驗。
+    var target = url ? safeUrl(url)
+               : (gok ? safeUrl(SHELL_GO[gok] || '')
+                      : (PUNCH + '?page=' + encodeURIComponent(pg)));
     if (!target){                                    // 不在白名單 → 不載，也不靜靜吞掉
       showVeil('無法開啟', '這個位置不在允許範圍內。', '回首頁', 'index.html');
       return;
@@ -186,6 +206,15 @@
     // GAS 的使用者內容跑在 *.googleusercontent.com；外層包裝是 script.google.com
     if (!/\.googleusercontent\.com$/.test(o) && o !== 'https://script.google.com') return;
     var d = ev.data; if (!d) return;
+
+    // ★2026/09/10 探殼。內層只想知道「有沒有殼」，不要導航。
+    //   為什麼需要：內層必須在【點擊當下同步】決定要 postMessage 還是讓 <a> 自己跳，
+    //   而 shell-nav 的 ack 是非同步的（等 250ms），來不及在 click 事件裡做決定。
+    //   iOS 只認真手勢，錯過就整個吞掉（【坑B】）。
+    if (d.wz === 'shell-ping'){
+      try { ev.source.postMessage({ wz:'shell-ack' }, o); } catch(e){}
+      return;
+    }
 
     if (d.wz === 'shell-nav'){
       var u = safeUrl(d.url);
