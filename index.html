@@ -239,6 +239,10 @@
 </div>
 <script>
  var TARGET_URL = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbzSn9xYdkf7bVZIaPe8XtrKMPdsdegPtV3kZZ72QJ44GJE9RHBal29SsE9K7ekREXUwWQ/exec';
+ // ★2026/09/16　進系統一律先進外殼 —— 頂層留在 winz-tech.github.io。
+ //   殼自己會拿新鮮 rc，所以這裡不用再帶 ?rc=（少燒一張，也少一個過期的機會）。
+ //   ⚠ 要退版：把下面 launch() 和 validate 那兩處改回 TARGET_URL 即可，秒退。
+ var SHELL_URL = 'app.html?go=' + encodeURIComponent(TARGET_URL);
 
   // ═══ 【2026/09/04】記憶工具 ═══
   //   ★ 為什麼要有這一段：iOS 會在沒有任何通知的情況下清掉網站的記憶，
@@ -346,8 +350,8 @@
           var _nm = getCk('WZ_NAME_CK'); if (_nm) setCk('WZ_NAME_CK', _nm);
           var _at = getCk('WZ_AT_CK') || lsGet('WZ_AT_LS') || String(Date.now());
           setCk('WZ_AT_CK', _at); lsSet('WZ_AT_LS', _at);   // 種票時間不動，只延長期限
-          var _go = TARGET_URL + '?rc=' + encodeURIComponent(d.rc);
-          _wzPushGate(tok, _go);          // ★ 推播詢問閘門：不用問就直接放行
+          _wzPushGate(tok, SHELL_URL);    // ★ 推播詢問閘門：不用問就直接放行
+          //   ★2026/09/16 改走外殼。d.rc 這裡就不用了 —— 殼載入時會自己拿一張新鮮的。
         } else {
           delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK');     // token 無效(離職/被踢) → 清 cookie 留在接待頁
           _wzRestoreBtn();                                // 按鈕還回來,走手動登入
@@ -566,9 +570,11 @@
     document.getElementById('btnEnter').style.opacity = '.6';
     var tok = getCk('WZ_TOKEN_CK');
     if (tok && Notification.permission === 'granted') {
-      _wzPushGate(tok, TARGET_URL);      // 只有已授權才走閘門 → 必定靜默重訂,不可能彈卡
+      _wzPushGate(tok, SHELL_URL);       // 只有已授權才走閘門 → 必定靜默重訂,不可能彈卡
     } else {
-      window.location.href = TARGET_URL;
+      // ★2026/09/16 改走外殼（app.html）。原本這裡是 window.location.href = TARGET_URL，
+      //   整頁跳去 script.google.com，頂層離開 winz-tech.github.io —— 這就是病根。
+      window.location.href = SHELL_URL;
     }
   }
   document.getElementById('btnEnter').addEventListener('click', launch);
