@@ -572,9 +572,10 @@
     if (tok && Notification.permission === 'granted') {
       _wzPushGate(tok, SHELL_URL);       // 只有已授權才走閘門 → 必定靜默重訂,不可能彈卡
     } else {
-      // ★2026/09/16 改走外殼（app.html）。原本這裡是 window.location.href = TARGET_URL，
-      //   整頁跳去 script.google.com，頂層離開 winz-tech.github.io —— 這就是病根。
-      window.location.href = SHELL_URL;
+      // ★2026/09/16 有票才走外殼。
+      //   ⚠ 沒票的人一定要直接去 GAS —— 送去 app.html 會被它擋下來說「尚未登入」，
+      //     然後把人丟回這一頁，按幾次都一樣。第一次登入必須讓 GAS 跳 Google。
+      window.location.href = tok ? SHELL_URL : TARGET_URL;
     }
   }
   document.getElementById('btnEnter').addEventListener('click', launch);
