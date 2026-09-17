@@ -242,7 +242,7 @@
  // ★2026/09/16　進系統一律先進外殼 —— 頂層留在 winz-tech.github.io。
  //   殼自己會拿新鮮 rc，所以這裡不用再帶 ?rc=（少燒一張，也少一個過期的機會）。
  //   ⚠ 要退版：把下面 launch() 和 validate 那兩處改回 TARGET_URL 即可，秒退。
- var SHELL_URL = TARGET_URL;
+ var SHELL_URL = 'app.html?go=' + encodeURIComponent(TARGET_URL);
 
   // ═══ 【2026/09/04】記憶工具 ═══
   //   ★ 為什麼要有這一段：iOS 會在沒有任何通知的情況下清掉網站的記憶，
