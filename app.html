@@ -136,6 +136,7 @@
   }
 
   var watchdog = null;
+  var _lastRelogin = 0;   // ★ shell-relogin 冷卻（見下方 message 處理）
   function load(url){
     var want   = url || outerGo();
     var target = want ? safeUrl(want) : (PUNCH + '?page=' + encodeURIComponent(outerPage()));
