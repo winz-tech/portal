@@ -350,8 +350,9 @@
           var _nm = getCk('WZ_NAME_CK'); if (_nm) setCk('WZ_NAME_CK', _nm);
           var _at = getCk('WZ_AT_CK') || lsGet('WZ_AT_LS') || String(Date.now());
           setCk('WZ_AT_CK', _at); lsSet('WZ_AT_LS', _at);   // 種票時間不動，只延長期限
-          _wzPushGate(tok, SHELL_URL);    // ★ 推播詢問閘門：不用問就直接放行
-          //   ★2026/09/16 改走外殼。d.rc 這裡就不用了 —— 殼載入時會自己拿一張新鮮的。
+          // ★2026/09/21　把這張 rc 交棒給殼，殼就不用再問一次後端（每次進系統省一趟 GAS）。
+          //   放在 # 後面不會送到伺服器；殼一讀到就抹掉；超過 30 秒殼會自己重拿。
+          _wzPushGate(tok, SHELL_URL + '#rc=' + encodeURIComponent(d.rc) + '&at=' + Date.now());
         } else {
           delCk('WZ_TOKEN_CK'); delCk('WZ_NAME_CK');     // token 無效(離職/被踢) → 清 cookie 留在接待頁
           _wzRestoreBtn();                                // 按鈕還回來,走手動登入
