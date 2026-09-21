@@ -49,9 +49,10 @@
   #veil.splash .bar{display:block}
   #veil.splash .spin,#veil.splash .t,#veil.splash .s,#veil.splash .btn{display:none}
   #veil.splash.slow .slow{display:block}
-  #splashLogo{width:88px;height:88px;border-radius:22px;object-fit:contain;
-    filter:drop-shadow(0 0 18px rgba(227,6,19,.45));
+  #splashLogo{width:auto;height:56px;max-width:70vw;object-fit:contain;
+    filter:drop-shadow(0 0 14px rgba(227,6,19,.5));
     animation:logoIn .6s ease-out both}
+  @media (max-width:480px){ #splashLogo{height:44px} }
   @keyframes logoIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
   .bar{width:120px;height:2px;border-radius:2px;overflow:hidden;background:#1e1e24}
   .bar i{display:block;width:40%;height:100%;border-radius:2px;
@@ -84,7 +85,8 @@
 
 <!-- ★ v6f　一開始就是 splash，第一格畫面不會再閃「連線中…」 -->
 <div id="veil" class="splash">
-  <img id="splashLogo" src="icon-192.png" alt="" onerror="this.style.display='none'">
+    <img id="splashLogo" src="/portal/winz-logo.png" alt="穎利科技 WINZ"
+       onerror="this.onerror=null;this.src='icon-192.png'">
   <div class="bar"><i></i></div>
   <div class="slow">連線中…</div>
   <div class="spin" id="spin"></div>
