@@ -68,7 +68,7 @@
 
 <script>
 /* ════════════════════════════════════════════════════════════
-   app.html　外殼　v6b　2026/09/21
+   app.html　外殼　v6c　2026/09/21
    ── portal/ 與 WINZ-ClockIn/ 放的是「同一份檔案」，沒有寫死資料夾名字。
 
    在做什麼：把 GAS 包進 iframe，頂層永遠停在 winz-tech.github.io。
@@ -78,20 +78,21 @@
         內層那個 googleusercontent origin 的 localStorage 就算被 iOS 清掉也沒差。
         （2026/09/16 抓到的 A1+D2 就是死在「網址上那張 rc 已經用過／過期」。）
 
-   ══ v6b 改了什麼（2026/09/21）══
-     ① 共用平板（WZ_PAD=1）睡醒 → 回 index.html?pad=1（人頭頁），不重載原頁。
-        殼的 cookie 是設備帳號的，重載原頁 = 那一頁變成設備身分在跑。
-     ② 右下角版號戳章（量測品，穩定後拿掉）。
+   ══ v6c 改了什麼（2026/09/21）══
+     ★ 「我是不是平板」改成【開機那一刻決定、記住】，醒來不再重讀。
+       實測：同一個殼，開機讀 WZ_PAD = Y，關螢幕 25 秒醒來再讀 = N。
+       殼自己從來不寫也不刪這個旗標 —— 是別的東西動了它
+       （iOS 睡醒後那個容器的 localStorage 讀不到／被清，或別的頁面刪了）。
+       一台平板不會睡一覺變成手機，所以身分要在開機時定下來。
+     ① IS_PAD 開機時讀一次，之後都用它
+     ② 醒來發現旗標不見 → 寫回去（不然回 index.html 時它也不知道自己是平板）
+     ③ 量測：開機值／醒時值寫進 cookie WZ_WAKE_DIAG，下一個殼開起來印在戳章上
 
-   ══ v6 改了什麼（2026/09/21）══
-     ★ 睡醒重載（wake）。病根：
-       frame.src 上那張 rc 會一直留著。iOS 把分頁凍結、記憶體回收之後再喚醒，
-       它會【照著 src 重新載入一次】—— 同一張燒過的碼又送一次 → J（換碼失敗）
-       → 退回本機那張已逾時的共用票 → B → 補票 iframe 沒回話 → D2。
-       而這整段期間【殼的 JS 沒有重新執行】，load() 不會跑，
-       新鮮的 rc 永遠不會被注進去。只能等內層先撞牆才喊 shell-relogin，
-       那時候人已經看到紅牆了，網路又多半還沒接回來。
-       修法：殼自己接住 visibilitychange / pageshow，在內層需要票之前先重載一輪。
+   ══ v6b（2026/09/21）══ 共用平板睡醒回 index.html?pad=1（人頭頁），不重載原頁。
+   ══ v6 （2026/09/21）══ 睡醒重載（wake）。
+       frame.src 上那張 rc 會一直留著，iOS 喚醒凍結的分頁時照著 src 重載 →
+       燒過的碼又送一次 → J → 退回本機那張已逾時的共用票 → B → D2。
+       殼的 JS 沒重跑，沒人去拿新的碼。修法：殼接 visibilitychange / pageshow。
 
    ══ v5 改了什麼（2026/09/16）══
      ① SHELL_OK 加入「作業中心」的部署碼
@@ -106,7 +107,7 @@
      否則那一頁在殼裡會是一片空白。
    ════════════════════════════════════════════════════════════ */
 (function(){
-  var SHELL_VER = 'v6b';
+  var SHELL_VER = 'v6c';
   var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
   // ★ 只准載自己人，而且只認「已經加過 ALLOWALL 的專案」。
   //   沒加那一行的專案嵌進來會是一片空白 —— 比掀殼更糟。
@@ -130,6 +131,11 @@
     try { var m = document.cookie.match('(^|;)\\s*' + k + '\\s*=\\s*([^;]+)');
           return m ? decodeURIComponent(m.pop()) : ''; }
     catch(e){ return ''; }
+  }
+  // ★2026/09/21　量測用：短命 cookie（10 分鐘），只存診斷字串，不存任何票。
+  function setCk(k, v){
+    try { document.cookie = k + '=' + encodeURIComponent(v)
+                          + ';path=/;max-age=600;SameSite=Lax;Secure'; } catch(e){}
   }
   function showVeil(title, detail, btnText, btnHref){
     spin.style.display = detail ? 'none' : '';
@@ -157,6 +163,17 @@
     catch(e){ return ''; }
   }
 
+  // ★2026/09/21 v6c　讀平板旗標：Y / N / E（讀的時候直接報錯）
+  function readPad(){
+    try { return localStorage.getItem('WZ_PAD') === '1' ? 'Y' : 'N'; }
+    catch(e){ return 'E'; }
+  }
+  // ★ 開機那一刻定身分，之後都用這個。不要在醒來時重讀 —— 實測醒來會讀到 N。
+  var PAD_AT_BOOT = readPad();
+  var IS_PAD      = (PAD_AT_BOOT === 'Y');
+  // 上一個殼睡醒時留下的診斷（有才印）
+  var LAST_WAKE   = getCk('WZ_WAKE_DIAG');
+
   var watchdog = null;
   var _lastRelogin = 0;   // ★ shell-relogin 冷卻（見下方 message 處理）
   var _netTry = 0;        // ★ 連線重試次數（見 load 的 catch）
@@ -168,17 +185,14 @@
   var WAKE_MS = 20000;
   var _hidAt  = 0;
 
-  function isPad(){
-    try { return localStorage.getItem('WZ_PAD') === '1'; } catch(e){ return false; }
-  }
-
   // ★2026/09/21　量測品：版號戳章。穩定之後整支拿掉。
   function stamp(extra){
     var el = document.getElementById('shellStamp');
     if (!el) return;
     el.textContent = 'shell ' + SHELL_VER
-                   + ' · pad=' + (isPad() ? 'Y' : 'N')
+                   + ' · pad=' + (IS_PAD ? 'Y' : 'N')
                    + ' · wake=' + Math.round(WAKE_MS / 1000) + 's'
+                   + (LAST_WAKE ? ' · 上次醒:' + LAST_WAKE : '')
                    + (extra ? ' · ' + extra : '');
   }
 
@@ -253,23 +267,33 @@
     if (away < WAKE_MS) return;              // ⚠ 切出去看個訊息就回來 → 不動它。
                                              //   現場填到一半的發料登記不能被洗掉。
 
-    // ★2026/09/21 v6b　共用平板：睡醒一律回人頭頁。
+    // ★ 量測：開機時讀到什麼、現在讀到什麼。寫進 cookie，下一個殼開起來印出來。
+    var padNow = readPad();
+    var diag   = '開' + PAD_AT_BOOT + '→醒' + padNow;
+    setCk('WZ_WAKE_DIAG', diag);
+
+    // ★2026/09/21 v6c　共用平板：睡醒一律回人頭頁。
     //   殼的 cookie 是【設備帳號】的，重載目前這一頁 = 那一頁變成用設備身分在跑，
     //   下一個人拿起來就能直接發料，紀錄會掛在設備帳號名下。
     //   所以平板不重載原頁，走回 index.html?pad=1（跟桌面捷徑同一條路）。
+    //   ⚠ 用開機時記住的 IS_PAD，不用 padNow —— 實測醒來會讀到 N。
     //   ⚠ 放在 cookie 判斷之前：平板就算 cookie 不見了也要回人頭頁，
     //     index.html 自己會處理「有 cookie 進殼／沒 cookie 直接去 PIN」。
-    if (isPad()) {
-      stamp('醒:回人頭');
+    if (IS_PAD) {
+      if (padNow !== 'Y') {                  // 旗標被動過 → 寫回去，
+        try { localStorage.setItem('WZ_PAD', '1'); } catch(e){}   // 不然 index.html 也會以為不是平板
+      }
+      stamp('醒:回人頭 ' + diag);
+      showVeil('回到選人畫面…', '');
       location.replace('index.html?pad=1');
       return;
     }
 
-    if (!getCk('WZ_TOKEN_CK')) { stamp('醒:無cookie'); return; }
+    if (!getCk('WZ_TOKEN_CK')) { stamp('醒:無cookie ' + diag); return; }
                                              // ⚠ 沒有第一方 cookie 就不要碰。
                                              //   不然 cookie 過期但內層還活著的人，
                                              //   會被我們從「還能用」打成「尚未登入」—— 那是新病。
-    stamp('醒:重載');
+    stamp('醒:重載 ' + diag);
     _lastRelogin = Date.now();               // ★ 剛注完新碼，壓住內層 30 秒內的 shell-relogin
     _netTry = 0;
     load();                                  // 不帶參數 → 從網址列重新推導，就是目前這一頁
