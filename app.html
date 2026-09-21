@@ -39,6 +39,10 @@
     font-size:16px;font-weight:bold;letter-spacing:3px;
     box-shadow:0 0 20px rgba(227,6,19,.4)}
   .btn.on{display:inline-block}
+  /* ★2026/09/21　量測品：殼的版號戳章。穩定之後整段拿掉（連同 body 裡的 #shellStamp）。 */
+  #shellStamp{position:fixed;right:6px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
+    z-index:20;pointer-events:none;
+    font:10px/1.2 ui-monospace,Menlo,Consolas,monospace;color:rgba(255,255,255,.4)}
 </style>
 </head>
 <body>
@@ -60,9 +64,11 @@
   <a class="btn" id="go" href="index.html">前往登入</a>
 </div>
 
+<div id="shellStamp"></div>
+
 <script>
 /* ════════════════════════════════════════════════════════════
-   app.html　外殼　v6　2026/09/21
+   app.html　外殼　v6b　2026/09/21
    ── portal/ 與 WINZ-ClockIn/ 放的是「同一份檔案」，沒有寫死資料夾名字。
 
    在做什麼：把 GAS 包進 iframe，頂層永遠停在 winz-tech.github.io。
@@ -71,6 +77,11 @@
      ③ ★ 每次載入都現拿一張新鮮的 rc 注進 iframe ——
         內層那個 googleusercontent origin 的 localStorage 就算被 iOS 清掉也沒差。
         （2026/09/16 抓到的 A1+D2 就是死在「網址上那張 rc 已經用過／過期」。）
+
+   ══ v6b 改了什麼（2026/09/21）══
+     ① 共用平板（WZ_PAD=1）睡醒 → 回 index.html?pad=1（人頭頁），不重載原頁。
+        殼的 cookie 是設備帳號的，重載原頁 = 那一頁變成設備身分在跑。
+     ② 右下角版號戳章（量測品，穩定後拿掉）。
 
    ══ v6 改了什麼（2026/09/21）══
      ★ 睡醒重載（wake）。病根：
@@ -95,6 +106,7 @@
      否則那一頁在殼裡會是一片空白。
    ════════════════════════════════════════════════════════════ */
 (function(){
+  var SHELL_VER = 'v6b';
   var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
   // ★ 只准載自己人，而且只認「已經加過 ALLOWALL 的專案」。
   //   沒加那一行的專案嵌進來會是一片空白 —— 比掀殼更糟。
@@ -151,9 +163,24 @@
 
   // ★2026/09/21　睡醒重載用的兩個變數。
   //   WAKE_MS：離開多久才算「睡過一覺」，短暫切出去不算。
-  //   ⚠ 測試的時候把它改成 20000（20 秒），驗完務必改回 10 * 60 * 1000。
+  //   ⚠⚠ 目前是【測試值 20 秒】。驗完務必改回 10 * 60 * 1000，
+  //      戳章上會一直顯示 wake=20s 提醒你。
   var WAKE_MS = 20000;
   var _hidAt  = 0;
+
+  function isPad(){
+    try { return localStorage.getItem('WZ_PAD') === '1'; } catch(e){ return false; }
+  }
+
+  // ★2026/09/21　量測品：版號戳章。穩定之後整支拿掉。
+  function stamp(extra){
+    var el = document.getElementById('shellStamp');
+    if (!el) return;
+    el.textContent = 'shell ' + SHELL_VER
+                   + ' · pad=' + (isPad() ? 'Y' : 'N')
+                   + ' · wake=' + Math.round(WAKE_MS / 1000) + 's'
+                   + (extra ? ' · ' + extra : '');
+  }
 
   function load(url){
     var want   = url || outerGo();
@@ -226,23 +253,23 @@
     if (away < WAKE_MS) return;              // ⚠ 切出去看個訊息就回來 → 不動它。
                                              //   現場填到一半的發料登記不能被洗掉。
 
-    // ★2026/09/21　共用平板：睡醒一律回人頭頁。
+    // ★2026/09/21 v6b　共用平板：睡醒一律回人頭頁。
     //   殼的 cookie 是【設備帳號】的，重載目前這一頁 = 那一頁變成用設備身分在跑，
     //   下一個人拿起來就能直接發料，紀錄會掛在設備帳號名下。
     //   所以平板不重載原頁，走回 index.html?pad=1（跟桌面捷徑同一條路）。
-    //   WZ_PAD 是平板入口在 github.io 這邊寫的旗標，殼跟它同網域，讀得到。
     //   ⚠ 放在 cookie 判斷之前：平板就算 cookie 不見了也要回人頭頁，
     //     index.html 自己會處理「有 cookie 進殼／沒 cookie 直接去 PIN」。
-    var isPad = false;
-    try { isPad = localStorage.getItem('WZ_PAD') === '1'; } catch(e){}
-    if (isPad) {
+    if (isPad()) {
+      stamp('醒:回人頭');
       location.replace('index.html?pad=1');
       return;
     }
 
-    if (!getCk('WZ_TOKEN_CK')) return;       // ⚠ 沒有第一方 cookie 就不要碰。
+    if (!getCk('WZ_TOKEN_CK')) { stamp('醒:無cookie'); return; }
+                                             // ⚠ 沒有第一方 cookie 就不要碰。
                                              //   不然 cookie 過期但內層還活著的人，
                                              //   會被我們從「還能用」打成「尚未登入」—— 那是新病。
+    stamp('醒:重載');
     _lastRelogin = Date.now();               // ★ 剛注完新碼，壓住內層 30 秒內的 shell-relogin
     _netTry = 0;
     load();                                  // 不帶參數 → 從網址列重新推導，就是目前這一頁
@@ -308,6 +335,7 @@
     }
   });
 
+  stamp();
   load();
 })();
 </script>
