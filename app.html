@@ -104,7 +104,7 @@
      否則那一頁在殼裡會是一片空白。
    ════════════════════════════════════════════════════════════ */
 (function(){
-  var SHELL_VER = 'v6d';
+  var SHELL_VER = 'v6e';
   var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
   // ★ 只准載自己人，而且只認「已經加過 ALLOWALL 的專案」。
   //   沒加那一行的專案嵌進來會是一片空白 —— 比掀殼更糟。
@@ -341,6 +341,15 @@
     //      借用同一個字會讓它誤判「殼接住了」。
     if (d.wz === 'shell-ping'){
       try { ev.source.postMessage({ wz:'shell-here', ok: SHELL_OK.slice() }, o); } catch(e){}
+      // ★2026/09/21 v6e　PIN 頁報到：「我是人頭頁」。
+      //   作業中心把平板送去 PIN 頁是在 iframe 裡自己換頁，殼看不到（v6d 實測 home=--）。
+      //   所以改由 PIN 頁自己說。到了就記住：這是 PIN 工作階段，家在人頭頁。
+      //   網址列也同步改成 PIN 頁，之後重整、重載都回這裡。
+      if (d.home === 'pin'){
+        PIN_HOME = true;
+        markGo(PIN_URL);
+        stamp('');
+      }
       return;
     }
 
