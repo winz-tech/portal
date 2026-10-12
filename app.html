@@ -59,10 +59,13 @@
     #splashLogo,.slow{animation:none}
     .bar i{animation-duration:2.4s}
   }
-  /* ★ 量測品：戳章兩行（第二行是逐步記錄）。穩定之後整段拿掉。 */
+  /* ★2026/10/12 v7　戳章收成「很淡的版號」。
+     平常只印 v7（幾乎看不見）；網址加 ?diag=1 才印完整兩行（逐步記錄），?diag=0 關掉。
+     不做「連點四下」：要點得到就得蓋一塊在 iframe 上，會擋住內層右下角的按鈕。 */
   #shellStamp{position:fixed;right:6px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);
     z-index:20;pointer-events:none;white-space:pre;text-align:right;
-    font:10px/1.35 ui-monospace,Menlo,Consolas,monospace;color:rgba(255,255,255,.45)}
+    font:9px/1.35 ui-monospace,Menlo,Consolas,monospace;color:rgba(255,255,255,.16)}
+  #shellStamp.diag{font-size:10px;color:rgba(255,255,255,.45)}
 </style>
 </head>
 <body>
@@ -86,13 +89,26 @@
 
 <script>
 /* ════════════════════════════════════════════════════════════
-   app.html　外殼　v6i　2026/09/21
+   app.html　外殼　v7　2026/10/12
+   ══ v7 ══ 兩件事
+     ① 睡醒重載只留給 iPhone／iPad（WAKE_RELOAD）
+        元家 10/12：「首頁放置一陣子就會被重新整理，回來又要再等一陣子。」
+        v6 的「離開超過 WAKE_MS 就重載」是為 iOS 加的（iOS 喚醒凍結分頁會照 iframe 的 src
+        重載，帶著燒過的 rc → 紅牆）。電腦、安卓沒有這個問題，卻每次回來都整串重跑：
+        外殼驗票 → GAS 冷啟動 → WZ 守門 → 作業中心拿資料。
+        → 非 iOS 回來不重載，畫面原樣接著用。
+        → 萬一內層真的沒票，內層會喊 shell-relogin，殼照舊重拿新碼（v6e 起已能救回來）。
+        → 平板（PIN_HOME）睡醒回人頭頁不受影響：那是「換下一個人」，不是為了拿新碼。
+        退版：把 WAKE_RELOAD 那行改成 var WAKE_RELOAD = true;（所有裝置照舊重載）
+     ② 戳章收起來：平常只剩很淡的「v7」；?diag=1 打開完整記錄（存在這台裝置，?diag=0 關掉）。
+        逐步記錄照樣在背景記，只是不顯示 —— 平板沒有開發者工具，要查的時候還用得到。
+   ══ v6j ══ SHELL_OK 加 07-申請管理（09/22，見下方白名單註解）
    ══ v6i ══ 開機畫面「收起」不再只靠淡出動畫
      安卓打卡實測（v6h 記錄）：LSVFlRH · vhsw
        → 殼下令收起（H），hide 也確實掛上了，畫面卻還蓋著 —— 淡出動畫在那支手機上沒跑完。
      修法：hideVeil() 淡出 450ms 後，再加 gone（display:none）把整層拿掉。
        showSplash()/showVeil() 先把 gone 拿掉再顯示；中途又要顯示就取消那個計時。
-   ══ v6h ══ 逐步記錄（戳章第二行）：
+   ══ v6h ══ 逐步記錄（戳章第二行，v7 起要 ?diag=1 才看得到）：
        L 開始載入　S 顯示開機畫面　V 驗票成功　T 用交棒　X 驗票連線失敗
        F 設定 iframe　l iframe 載入事件　p 內層報到　R 判定畫面可用　H 下令收起　Z 整層拿掉
        E 錯誤畫面　N 內層要求換頁　A 內層自帶身分　g/G 內層喊沒票（G=受理）　W 睡醒
@@ -100,7 +116,7 @@
    其餘註解見 v6g 與專案文件 claude/外殼v6-平板睡醒回人頭頁-2026-09-21.md
    ════════════════════════════════════════════════════════════ */
 (function(){
-  var SHELL_VER = 'v6j';
+  var SHELL_VER = 'v7';
   var PUNCH = 'https://script.google.com/a/macros/winz-tech.com/s/AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3/exec';
   var SHELL_OK = [
     'AKfycbxUDyY2BWgoYF4fbEOCBMnw-bmz-1KxogCpvtezgZboiuC9S04oHNnhkVPXb3Kg6Gp3',
@@ -115,6 +131,30 @@
   ];
   var PIN_ID  = 'AKfycbzjZnB5yGU4416GcuR8dpzn0_1SijpF6Aj3o_rTpmPCoa_Sz5ucmb89ulteF8bDwfeB';
   var PIN_URL = 'https://script.google.com/a/macros/winz-tech.com/s/' + PIN_ID + '/exec?page=field-pin';
+
+  // ★2026/10/12 v7　iPhone／iPad 判斷（iPadOS 13 起 UA 會偽裝成 Mac，要看觸控點）
+  var IS_IOS = (function(){
+    try {
+      var ua = navigator.userAgent || '';
+      if (/iPad|iPhone|iPod/.test(ua)) return true;
+      return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+    } catch(e){ return false; }
+  })();
+  // ★2026/10/12 v7　睡醒要不要重載（具名常數，grep 得到）。退版：改成 true。
+  var WAKE_RELOAD = IS_IOS;
+
+  // ★2026/10/12 v7　診斷模式：?diag=1 開、?diag=0 關，記在這台裝置。讀不到 localStorage 就當沒開。
+  var DIAG = false;
+  (function(){
+    var q = '';
+    try { q = new URLSearchParams(location.search).get('diag') || ''; } catch(e){}
+    try {
+      if (q === '1') localStorage.setItem('WZ_SHELL_DIAG', '1');
+      if (q === '0') localStorage.removeItem('WZ_SHELL_DIAG');
+      DIAG = localStorage.getItem('WZ_SHELL_DIAG') === '1';
+    } catch(e){ DIAG = (q === '1'); }
+  })();
+
   var frame = document.getElementById('frame');
   var veil  = document.getElementById('veil');
   var spin  = document.getElementById('spin');
@@ -232,15 +272,19 @@
     if (extra !== undefined) _stampExtra = extra;
     var el = document.getElementById('shellStamp');
     if (!el) return;
+    // ★ v7　平常只印版號；診斷模式才印完整兩行
+    if (!DIAG){ if (el.textContent !== SHELL_VER) el.textContent = SHELL_VER; return; }
+    el.className = 'diag';
     el.textContent = 'shell ' + SHELL_VER
                    + ' · home=' + (PIN_HOME ? 'PIN' : '--')
+                   + ' · ' + (IS_IOS ? 'iOS' : 'non-iOS') + (WAKE_RELOAD ? ' 醒重載' : ' 醒不載')
                    + (_tVal  ? ' · 驗' + _tVal  : '')
                    + (_tOpen ? ' · 開' + _tOpen : '')
                    + (_stampExtra ? ' · ' + _stampExtra : '')
                    + '\n' + (_trace || '-') + ' · v' + vstate() + ' · f' + _loads
                    + ' · ' + (document.visibilityState || '?').charAt(0);
   }
-  setInterval(function(){ stamp(); }, 1000);
+  if (DIAG) setInterval(function(){ stamp(); }, 1000);
   function armWatchdog(){
     clearTimeout(watchdog);
     watchdog = setTimeout(function(){
@@ -340,14 +384,19 @@
     _hidAt = 0;
     if (away < WAKE_MS) return;
     tr('W');
-    _lastRelogin = Date.now();
     _netTry = 0;
+    // 平板：睡醒一律回人頭頁（換下一個人用），跟 WAKE_RELOAD 無關
     if (PIN_HOME){
+      _lastRelogin = Date.now();
       stamp('醒:回人頭');
       goHome();
       return;
     }
     if (!getCk('WZ_TOKEN_CK')) { stamp('醒:無cookie'); return; }
+    // ★2026/10/12 v7　電腦／安卓：畫面原樣留著，不重跑。內層真的沒票會自己喊 shell-relogin。
+    //   ⚠ _lastRelogin 只在真的重載時才蓋：不重載還蓋的話，30 秒內內層喊沒票會被當成重複而忽略。
+    if (!WAKE_RELOAD) { stamp('醒:不重載'); return; }
+    _lastRelogin = Date.now();
     stamp('醒:重載');
     load();
   }
